@@ -1,7 +1,6 @@
 package ru.tsu.mobileprojectmap.ui.screens.map
-import androidx.compose.foundation.Image
+
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
@@ -35,22 +32,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import ru.tsu.mobileprojectmap.R
-import ru.tsu.mobileprojectmap.ui.screens.map.components.CanvasMap
-import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
-    onBack: () -> Unit,
-    viewModel: MapViewModel = viewModel()
+    onBack: () -> Unit
 ) {
-
-    val uiState = viewModel.uiState
     var showBottomSheet by remember { mutableStateOf(false) }
 
     if (showBottomSheet) {
@@ -70,30 +58,21 @@ fun MapScreen(
                 )
 
                 Button(
-                    onClick = {
-                        viewModel.setMode(MapEditMode.SET_START)
-                        showBottomSheet = false
-                    },
+                    onClick = { },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Поставить старт")
                 }
 
                 Button(
-                    onClick = {
-                        viewModel.setMode(MapEditMode.SET_FINISH)
-                        showBottomSheet = false
-                    },
+                    onClick = { },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Поставить финиш")
                 }
 
                 Button(
-                    onClick = {
-                        viewModel.setMode(MapEditMode.SET_OBSTACLE)
-                        showBottomSheet = false
-                    },
+                    onClick = { },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Добавить препятствие")
@@ -107,7 +86,7 @@ fun MapScreen(
                 }
 
                 TextButton(
-                    onClick = { viewModel.resetMap() },
+                    onClick = { },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Сбросить карту")
@@ -140,38 +119,21 @@ fun MapScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val verticalScroll = rememberScrollState()
-            val horizontalScroll = rememberScrollState()
-
+            // Большая область карты
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(12.dp)
-                    .background(Color(0xFFF5F5F5))
-                    .padding(8.dp)
-                    .verticalScroll(verticalScroll)
-                    .horizontalScroll(horizontalScroll)
-
+                    .background(Color(0xFFE6E6E6)),
+                contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.campus_map),
-                    contentDescription = "Карта",
-                    modifier = Modifier.size(1300.dp,1300.dp),
-                    contentScale = ContentScale.FillBounds
-                )
-                CanvasMap(
-                    cells = uiState.cells,
-                    onCellClick = { row, col ->
-                        viewModel.onCellClick(row, col)
-                    },
-                    worldWidth = 1300.dp,
-                    worldHeight = 1300.dp,
-                    modifier = Modifier.fillMaxSize()
+                Text(
+                    text = "Здесь будет grid",
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
 
-
-
+            // Кнопка-меню поверх карты снизу
             FloatingActionButton(
                 onClick = { showBottomSheet = true },
                 modifier = Modifier
