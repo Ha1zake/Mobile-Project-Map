@@ -1,9 +1,10 @@
 package ru.tsu.mobileprojectmap.ui.screens.map
-
+import ru.tsu.mobileprojectmap.ui.screens.map.components.GridMap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.dp
 fun MapScreen(
     onBack: () -> Unit
 ) {
+    var selectedCells by remember { mutableStateOf(setOf<Pair<Int, Int>>()) }
     var showBottomSheet by remember { mutableStateOf(false) }
 
     if (showBottomSheet) {
@@ -119,21 +121,36 @@ fun MapScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Большая область карты
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(12.dp)
-                    .background(Color(0xFFE6E6E6)),
+                    .background(Color(0xFFF5F5F5))
+                    .padding(8.dp),
                 contentAlignment = Alignment.Center
+
             ) {
-                Text(
-                    text = "Здесь будет grid",
-                    style = MaterialTheme.typography.bodyLarge
+                GridMap(
+                    rows = 10,
+                    cols = 10,
+                    selectedCells = selectedCells,
+                    onCellClick = { row, col ->
+                        val cell = row to col
+                        selectedCells =
+                            if (selectedCells.contains(cell)) {
+                                selectedCells - cell
+                            } else {
+                                selectedCells + cell
+                            }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
                 )
             }
 
-            // Кнопка-меню поверх карты снизу
+
             FloatingActionButton(
                 onClick = { showBottomSheet = true },
                 modifier = Modifier
