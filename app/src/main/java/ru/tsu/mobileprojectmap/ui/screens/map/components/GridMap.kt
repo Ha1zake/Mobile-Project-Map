@@ -3,35 +3,33 @@ package ru.tsu.mobileprojectmap.ui.screens.map.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import ru.tsu.mobileprojectmap.ui.screens.map.model.MapCell
 
 @Composable
 fun GridMap(
-    rows: Int,
-    cols: Int,
-    selectedCells: Set<Pair<Int, Int>>,
+    cells: List<List<MapCell>>,
     onCellClick: (row: Int, col: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        verticalArrangement = Arrangement.spacedBy(1.dp)
 
     ) {
-        for (row in 0 until rows) {
+        cells.forEach { rowList ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                horizontalArrangement = Arrangement.spacedBy(1.dp)
 
             ) {
-                for (col in 0 until cols) {
+                rowList.forEach { cell ->
                     GridCell(
-                        isSelected = selectedCells.contains(row to col),
-                        onClick = { onCellClick(row, col) },
+                        cellType = cell.type,
+                        onClick = { onCellClick(cell.row, cell.col) },
                         modifier = Modifier.weight(1f)
                     )
                 }
