@@ -10,20 +10,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import ru.tsu.mobileprojectmap.ui.screens.map.model.CellType
 
 @Composable
 fun GridCell(
-    isSelected: Boolean,
+    cellType: CellType,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val color = when (cellType){
+        CellType.EMPTY -> Color(0xFFE0E0E0)
+        CellType.START -> Color(0xFF4CAF50)
+        CellType.FINISH -> Color(0xFFF44336)
+        CellType.OBSTACLE -> Color(0xFF424242)
+    }
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .border(1.dp, Color.DarkGray)
-            .background(
-                if (isSelected) Color(0xFF81C784) else Color(0xFFE0E0E0)
-            )
+            .background(color)
             .clickable(onClick = onClick)
     )
 }
