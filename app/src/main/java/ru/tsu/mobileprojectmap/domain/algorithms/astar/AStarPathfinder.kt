@@ -26,7 +26,7 @@ class AStarPathfinder {
             val current = openSet.poll()
 
             if (current.point == end) {
-                return listOf(current.point)
+                return reconstructPath(current)
             }
 
             closedSet.add(current.point)
@@ -80,5 +80,15 @@ class AStarPathfinder {
         return emptyList()
     }
 
+    private fun reconstructPath(node : Node) : List<Point> {
+        val path = arrayListOf<Point>()
+        var current : Node? = node
+
+        while (current != null) {
+            path.add(current.point)
+            current = current.parent
+        }
+        return path.reversed()
+    }
 
 }
