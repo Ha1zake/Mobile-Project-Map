@@ -34,13 +34,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: MapViewModel = viewModel()
 ) {
-    var selectedCells by remember { mutableStateOf(setOf<Pair<Int, Int>>()) }
+
+    val uiState = viewModel.uiState
     var showBottomSheet by remember { mutableStateOf(false) }
 
     if (showBottomSheet) {
@@ -60,21 +64,21 @@ fun MapScreen(
                 )
 
                 Button(
-                    onClick = { },
+                    onClick = { viewModel.setMode(MapEditMode.SET_START) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Поставить старт")
                 }
 
                 Button(
-                    onClick = { },
+                    onClick = {viewModel.setMode(MapEditMode.SET_FINISH) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Поставить финиш")
                 }
 
                 Button(
-                    onClick = { },
+                    onClick = { viewModel.setMode(MapEditMode.SET_OBSTACLE)},
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Добавить препятствие")
@@ -88,7 +92,7 @@ fun MapScreen(
                 }
 
                 TextButton(
-                    onClick = { },
+                    onClick = {viewModel.resetMap() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Сбросить карту")
@@ -132,17 +136,9 @@ fun MapScreen(
 
             ) {
                 GridMap(
-                    rows = 10,
-                    cols = 10,
-                    selectedCells = selectedCells,
-                    onCellClick = { row, col ->
-                        val cell = row to col
-                        selectedCells =
-                            if (selectedCells.contains(cell)) {
-                                selectedCells - cell
-                            } else {
-                                selectedCells + cell
-                            }
+                    cells = uiState.cells,
+                    onCellClick = {row,col ->
+                        viewModel.onCellClick(row,col)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
