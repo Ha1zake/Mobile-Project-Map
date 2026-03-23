@@ -50,39 +50,58 @@ class MapViewModel : ViewModel(){
             updatedCells = updatedCells.map { rowList ->
                 rowList.map { cell ->
                     if (cell.row == oldStart.row && cell.col == oldStart.col) {
-                        cell.copy(type = CellType.START)
+                        cell.copy(type = CellType.EMPTY)
                     } else {
                         cell
                     }
                 }
             }
-
+        }
+        updatedCells = updatedCells.map { rowList ->
+            rowList.map { cell ->
+                if (cell.row == row && cell.col == col) {
+                    cell.copy(type = CellType.START)
+                } else {
+                    cell
+                }
+            }
+        }
             val newStart = updatedCells[row][col]
             uiState = uiState.copy(
                 cells = updatedCells,
                 startCell = newStart
             )
         }
-    }
+
     private fun setFinishCell(row: Int, col:Int){
         var updatedCells = uiState.cells
-        uiState.finishCell?.let {oldFinish ->
-            updatedCells = updatedCells.map {rowList ->
-                rowList.map {cell ->
-                    if(cell.row == oldFinish.row && cell.col == oldFinish.col){
-                        cell.copy(type = CellType.FINISH)
-                    } else{
+        uiState.finishCell?.let { oldFinish ->
+            updatedCells = updatedCells.map { rowList ->
+                rowList.map { cell ->
+                    if (cell.row == oldFinish.row && cell.col == oldFinish.col) {
+                        cell.copy(type = CellType.EMPTY)
+                    } else {
                         cell
                     }
                 }
             }
+        }
+        updatedCells = updatedCells.map { rowList ->
+            rowList.map { cell ->
+                if (cell.row == row && cell.col == col) {
+                    cell.copy(type = CellType.FINISH)
+                } else {
+                    cell
+                }
+            }
+        }
             val newFinish = updatedCells[row][col]
             uiState = uiState.copy(
                 cells = updatedCells,
-                startCell = newFinish
+                finishCell = newFinish
             )
         }
-    }
+
     private fun setObstacleCell(row: Int, col: Int){
         val updatedCells = uiState.cells.map { rowList ->
             rowList.map { cell ->
