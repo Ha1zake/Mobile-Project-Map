@@ -1,9 +1,10 @@
 package ru.tsu.mobileprojectmap.ui.screens.map
-
+import ru.tsu.mobileprojectmap.ui.screens.map.components.GridMap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -33,12 +34,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: MapViewModel = viewModel()
 ) {
+
+    val uiState = viewModel.uiState
     var showBottomSheet by remember { mutableStateOf(false) }
 
     if (showBottomSheet) {
@@ -58,21 +64,24 @@ fun MapScreen(
                 )
 
                 Button(
-                    onClick = { },
+                    onClick = { viewModel.setMode(MapEditMode.SET_START)
+                        showBottomSheet = false},
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Поставить старт")
                 }
 
                 Button(
-                    onClick = { },
+                    onClick = {viewModel.setMode(MapEditMode.SET_FINISH)
+                        showBottomSheet = false },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Поставить финиш")
                 }
 
                 Button(
-                    onClick = { },
+                    onClick = { viewModel.setMode(MapEditMode.SET_OBSTACLE)
+                        showBottomSheet = false},
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Добавить препятствие")
@@ -86,7 +95,7 @@ fun MapScreen(
                 }
 
                 TextButton(
-                    onClick = { },
+                    onClick = {viewModel.resetMap() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Сбросить карту")
@@ -119,21 +128,28 @@ fun MapScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Большая область карты
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(12.dp)
-                    .background(Color(0xFFE6E6E6)),
+                    .background(Color(0xFFF5F5F5))
+                    .padding(8.dp),
                 contentAlignment = Alignment.Center
+
             ) {
-                Text(
-                    text = "Здесь будет grid",
-                    style = MaterialTheme.typography.bodyLarge
+                GridMap(
+                    cells = uiState.cells,
+                    onCellClick = {row,col ->
+                        viewModel.onCellClick(row,col)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
                 )
             }
 
-            // Кнопка-меню поверх карты снизу
+
             FloatingActionButton(
                 onClick = { showBottomSheet = true },
                 modifier = Modifier
