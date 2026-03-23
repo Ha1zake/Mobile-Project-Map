@@ -64,21 +64,24 @@ fun MapScreen(
                 )
 
                 Button(
-                    onClick = { viewModel.setMode(MapEditMode.SET_START) },
+                    onClick = { viewModel.setMode(MapEditMode.SET_START)
+                        showBottomSheet = false},
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Поставить старт")
                 }
 
                 Button(
-                    onClick = {viewModel.setMode(MapEditMode.SET_FINISH) },
+                    onClick = {viewModel.setMode(MapEditMode.SET_FINISH)
+                        showBottomSheet = false },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Поставить финиш")
                 }
 
                 Button(
-                    onClick = { viewModel.setMode(MapEditMode.SET_OBSTACLE)},
+                    onClick = { viewModel.setMode(MapEditMode.SET_OBSTACLE)
+                        showBottomSheet = false},
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Добавить препятствие")
