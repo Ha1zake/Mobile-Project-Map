@@ -11,9 +11,7 @@ object KMeansAlgorithm {
         var clusters = emptyList<Cluster>()
         var converged = false
         var iterations = 0
-        var pointToCluster = emptyMap<String, Int>()
 
-        //проходим пока либо не сойлёмся, либо не упрёмся в лимит
         for (iteration in 0 until input.maxIterations) {
             val assignments = assignPointsToClusters(input.points, centroids)
             val newCentroids = recomputeCentroids(assignments, centroids)
@@ -31,7 +29,6 @@ object KMeansAlgorithm {
 
         return KMeansResult(
             clusters = clusters,
-            pointToCluster = pointToCluster,
             iterations = iterations,
             converged = converged
         )
@@ -59,7 +56,7 @@ object KMeansAlgorithm {
         for (point in points) {
             val nearestCentroidIndex = centroids.indices.minByOrNull { index ->
                 distance(point, centroids[index])
-            } ?: throw IllegalStateException("Центроиды отсутствуют")
+            } ?: throw IllegalStateException("No centroids available")
 
             assignments[nearestCentroidIndex]?.add(point)
         }
@@ -92,8 +89,7 @@ object KMeansAlgorithm {
             Cluster(
                 id = index,
                 centroid = centroids[index],
-                points = assignments[index].orEmpty(),
-                colorSeed = index,
+                points = assignments[index].orEmpty()
             )
         }
     }
