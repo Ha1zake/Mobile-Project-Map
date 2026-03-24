@@ -12,6 +12,7 @@ object KMeansAlgorithm {
         var converged = false
         var iterations = 0
 
+        //проходим пока либо не сойлёмся, либо не упрёмся в лимит
         for (iteration in 0 until input.maxIterations) {
             val assignments = assignPointsToClusters(input.points, centroids)
             val newCentroids = recomputeCentroids(assignments, centroids)
@@ -27,14 +28,14 @@ object KMeansAlgorithm {
             }
         }
 
-        return KMeansResult(
+        return KMeansResult (
             clusters = clusters,
             iterations = iterations,
             converged = converged
         )
     }
 
-    private fun initializeCentroids(
+    private fun initializeCentroids (
         points: List<ClusterPoint>,
         k: Int
     ): List<Centroid> {
@@ -43,7 +44,7 @@ object KMeansAlgorithm {
         }
     }
 
-    private fun assignPointsToClusters(
+    private fun assignPointsToClusters (
         points: List<ClusterPoint>,
         centroids: List<Centroid>
     ): Map<Int, List<ClusterPoint>> {
@@ -56,7 +57,7 @@ object KMeansAlgorithm {
         for (point in points) {
             val nearestCentroidIndex = centroids.indices.minByOrNull { index ->
                 distance(point, centroids[index])
-            } ?: throw IllegalStateException("No centroids available")
+            } ?: throw IllegalStateException("Центроиды отсутствуют")
 
             assignments[nearestCentroidIndex]?.add(point)
         }
@@ -64,7 +65,7 @@ object KMeansAlgorithm {
         return assignments
     }
 
-    private fun recomputeCentroids(
+    private fun recomputeCentroids (
         assignments: Map<Int, List<ClusterPoint>>,
         previousCentroids: List<Centroid>
     ): List<Centroid> {
@@ -81,7 +82,7 @@ object KMeansAlgorithm {
         }
     }
 
-    private fun buildClusters(
+    private fun buildClusters (
         assignments: Map<Int, List<ClusterPoint>>,
         centroids: List<Centroid>
     ): List<Cluster> {
@@ -94,7 +95,7 @@ object KMeansAlgorithm {
         }
     }
 
-    private fun distance(
+    private fun distance (
         point: ClusterPoint,
         centroid: Centroid
     ): Double {
@@ -103,7 +104,7 @@ object KMeansAlgorithm {
         return sqrt(dx * dx + dy * dy)
     }
 
-    private fun calculateMaxCentroidShift(
+    private fun calculateMaxCentroidShift (
         oldCentroids: List<Centroid>,
         newCentroids: List<Centroid>
     ): Double {
