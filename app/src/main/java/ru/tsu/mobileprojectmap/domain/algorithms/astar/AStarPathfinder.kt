@@ -7,6 +7,16 @@ import kotlin.math.abs
 import kotlin.math.min
 
 class AStarPathfinder {
+    private val directions = listOf(
+        Point(1, 0),
+        Point(-1, 0),
+        Point(0, 1),
+        Point(0, -1),
+        Point(1, 1),
+        Point(1, -1),
+        Point(-1, 1),
+        Point(-1, -1)
+    )
 
     private fun heuristic(a: Point, b: Point) : Double {
         val dx = abs(a.x - b.x)
@@ -31,17 +41,7 @@ class AStarPathfinder {
 
         openSet.add(startNode)
 
-        val directions = listOf(
-            Point(1, 0),
-            Point(-1, 0),
-            Point(0, 1),
-            Point(0, -1),
-            Point(1, 1),
-            Point(1, -1),
-            Point(-1, 1),
-            Point(-1, -1)
-        )
-
+        val cellMap = grid.associateBy { it.point }
         val nodeMap = mutableMapOf<Point, Node>()
         nodeMap[start] = startNode
 
@@ -59,17 +59,16 @@ class AStarPathfinder {
                     current.point.x + dir.x,
                     current.point.y + dir.y
                 )
-                if (closedSet.contains(neighbor)) continue
+                if (neighbor in closedSet) continue
 
-                val cell = grid.find{ it.point == neighbor }
-
-                if (cell == null) continue
+                val cell = cellMap[neighbor] ?: continue
 
                 if (dir.x != 0  && dir.y != 0) {
                     val first =
-                        grid.find { (it.point.x == current.point.x && it.point.y == neighbor.y) }
+                        cellMap[Point(current.point.x, neighbor.y)]
                     val second =
-                        grid.find { (it.point.x == neighbor.x && it.point.y == current.point.y) }
+                        cellMap[Point(neighbor.x, current.point.y)]
+
                     if (first?.isWalkable != true || second?.isWalkable != true) continue
                 }
 
@@ -92,8 +91,6 @@ class AStarPathfinder {
             }
 
         }
-
-
 
         return emptyList()
     }
