@@ -3,7 +3,12 @@ package ru.tsu.mobileprojectmap.ui.screens.map
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Paint
 import androidx.lifecycle.ViewModel
+import ru.tsu.mobileprojectmap.domain.algorithms.astar.AStarPathfinder
+import ru.tsu.mobileprojectmap.domain.model.GridCell
+import ru.tsu.mobileprojectmap.domain.model.Point
+import ru.tsu.mobileprojectmap.domain.usecase.FindPathUseCase
 import ru.tsu.mobileprojectmap.ui.screens.map.model.CellType
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapCell
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
@@ -16,6 +21,7 @@ class MapViewModel : ViewModel(){
             cells = createGrid(uiState.rows, uiState.cols)
         )
     }
+    private val findPathUseCase = FindPathUseCase(AStarPathfinder())
     private fun createGrid(rows: Int, cols: Int): List<List<MapCell>>{
         return List(rows){row ->
             List(cols) { col ->
@@ -34,16 +40,49 @@ class MapViewModel : ViewModel(){
         uiState = uiState.copy(
             cells = createGrid(uiState.rows,uiState.cols),
             startCell = null,
-            finishCell = null
+            finishCell = null,
+            path = emptyList()
         )
     }
-    fun onCellClick(row: Int, col: Int){
-        when(uiState.currentMode){
-            MapEditMode.SET_START -> setStartCell(row,col)
-            MapEditMode.SET_FINISH -> setFinishCell(row,col)
-            MapEditMode.SET_OBSTACLE -> setObstacleCell(row,col)
+    fun onCellClick(row: Int, col: Int) {
+        when (uiState.currentMode) {
+            MapEditMode.SET_START -> setStartCell(row, col)
+            MapEditMode.SET_FINISH -> setFinishCell(row, col)
+            MapEditMode.SET_OBSTACLE -> setObstacleCell(row, col)
         }
     }
+        fun clearMessage(){
+            uiState = uiState.copy(message = null)
+        }
+        fun findPath(){
+            val start = uiState.startCell
+            val finish = uiState.finishCell
+            if(start == null || finish == null){
+                uiState = uiState.copy(
+                    path = emptyList(),
+                    message = "Сначала поставьте старт и финиш"
+                )
+                return
+            }
+            val grid = uiState.cells.flatten().map { cell ->
+                GridCell(
+                    point = Point(x = cell.col, y = cell.row),
+                    isWalkable = cell.type != CellType.OBSTACLE
+                )
+            }
+            val startPoint = Point(x = start.col, y = start.row)
+            val endPoint = Point(x = finish.col, y = finish.row)
+            val resultPath = findPathUseCase.execute(
+                grid = grid,
+                start = startPoint,
+                end = endPoint
+            )
+            uiState = uiState.copy(
+                path = resultPath,
+                message = if (resultPath.isEmpty()) "Путь не найден" else null
+            )
+        }
+
     private fun setStartCell(row: Int, col: Int) {
         var updatedCells = uiState.cells
         uiState.startCell?.let { oldStart ->
@@ -114,5 +153,7 @@ class MapViewModel : ViewModel(){
         }
         uiState = uiState.copy(cells = updatedCells)
     }
-}
+
+    }
+
 

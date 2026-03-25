@@ -23,11 +23,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +54,13 @@ fun MapScreen(
 
     val uiState = viewModel.uiState
     var showBottomSheet by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.message) {
+        uiState.message?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearMessage()
+        }
+    }
 
     if (showBottomSheet) {
         ModalBottomSheet(
@@ -100,7 +109,10 @@ fun MapScreen(
                 }
 
                 Button(
-                    onClick = { },
+                    onClick = {
+                        viewModel.findPath()
+                        showBottomSheet = false
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Запустить A*")
@@ -161,6 +173,7 @@ fun MapScreen(
                 )
                 CanvasMap(
                     cells = uiState.cells,
+                    path = uiState.path,
                     onCellClick = { row, col ->
                         viewModel.onCellClick(row, col)
                     },

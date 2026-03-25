@@ -1,4 +1,5 @@
 package ru.tsu.mobileprojectmap.ui.screens.map
+import ru.tsu.mobileprojectmap.domain.model.Point
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapCell
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
 
@@ -8,5 +9,7 @@ data class MapUIState(
     val cells: List<List<MapCell>> = emptyList(),
     val currentMode: MapEditMode = MapEditMode.SET_OBSTACLE,
     val startCell: MapCell? = null,
-    val finishCell: MapCell? = null
-)
+    val finishCell: MapCell? = null,
+    val path: List<Point> = emptyList(),
+    val message: String? = null
+    )
