@@ -11,6 +11,7 @@ object KMeansAlgorithm {
         var clusters = emptyList<Cluster>()
         var converged = false
         var iterations = 0
+        var pointToCluster = emptyMap<String, Int>()
 
         for (iteration in 0 until input.maxIterations) {
             val assignments = assignPointsToClusters(input.points, centroids)
@@ -29,6 +30,7 @@ object KMeansAlgorithm {
 
         return KMeansResult(
             clusters = clusters,
+            pointToCluster = pointToCluster,
             iterations = iterations,
             converged = converged
         )
@@ -89,7 +91,8 @@ object KMeansAlgorithm {
             Cluster(
                 id = index,
                 centroid = centroids[index],
-                points = assignments[index].orEmpty()
+                points = assignments[index].orEmpty(),
+                colorSeed = index,
             )
         }
     }

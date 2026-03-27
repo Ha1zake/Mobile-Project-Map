@@ -15,7 +15,8 @@ data class Centroid (
 data class Cluster(
     val id: Int,
     val centroid: Centroid,
-    val points: List<ClusterPoint>
+    val points: List<ClusterPoint>,
+    val colorSeed: Int,
 )
 
 data class KMeansInput(
@@ -27,6 +28,7 @@ data class KMeansInput(
 
 data class KMeansResult (
     val clusters: List<Cluster>,
+    val pointToCluster: Map<String, Int>,
     val iterations: Int,
-    val converged: Boolean
+    val converged: Boolean,
 )
