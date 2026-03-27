@@ -11,6 +11,7 @@ object KMeansAlgorithm {
         var clusters = emptyList<Cluster>()
         var converged = false
         var iterations = 0
+        var pointToCluster = emptyMap<String, Int>()
 
         //проходим пока либо не сойлёмся, либо не упрёмся в лимит
         for (iteration in 0 until input.maxIterations) {
@@ -28,14 +29,15 @@ object KMeansAlgorithm {
             }
         }
 
-        return KMeansResult (
+        return KMeansResult(
             clusters = clusters,
+            pointToCluster = pointToCluster,
             iterations = iterations,
             converged = converged
         )
     }
 
-    private fun initializeCentroids (
+    private fun initializeCentroids(
         points: List<ClusterPoint>,
         k: Int
     ): List<Centroid> {
@@ -44,7 +46,7 @@ object KMeansAlgorithm {
         }
     }
 
-    private fun assignPointsToClusters (
+    private fun assignPointsToClusters(
         points: List<ClusterPoint>,
         centroids: List<Centroid>
     ): Map<Int, List<ClusterPoint>> {
@@ -65,7 +67,7 @@ object KMeansAlgorithm {
         return assignments
     }
 
-    private fun recomputeCentroids (
+    private fun recomputeCentroids(
         assignments: Map<Int, List<ClusterPoint>>,
         previousCentroids: List<Centroid>
     ): List<Centroid> {
@@ -82,7 +84,7 @@ object KMeansAlgorithm {
         }
     }
 
-    private fun buildClusters (
+    private fun buildClusters(
         assignments: Map<Int, List<ClusterPoint>>,
         centroids: List<Centroid>
     ): List<Cluster> {
@@ -90,12 +92,13 @@ object KMeansAlgorithm {
             Cluster(
                 id = index,
                 centroid = centroids[index],
-                points = assignments[index].orEmpty()
+                points = assignments[index].orEmpty(),
+                colorSeed = index,
             )
         }
     }
 
-    private fun distance (
+    private fun distance(
         point: ClusterPoint,
         centroid: Centroid
     ): Double {
@@ -104,7 +107,7 @@ object KMeansAlgorithm {
         return sqrt(dx * dx + dy * dy)
     }
 
-    private fun calculateMaxCentroidShift (
+    private fun calculateMaxCentroidShift(
         oldCentroids: List<Centroid>,
         newCentroids: List<Centroid>
     ): Double {
