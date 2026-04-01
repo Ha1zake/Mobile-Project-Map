@@ -5,9 +5,3 @@ data class MapCell(
     val type: CellType,
     val baseType: CellType = type
 )
-йцйццй
-
-        выфвфыжда
-        дкепше
-        у2
-цй
