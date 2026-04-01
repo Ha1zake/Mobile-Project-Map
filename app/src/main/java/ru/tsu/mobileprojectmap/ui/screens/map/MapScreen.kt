@@ -42,6 +42,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.tsu.mobileprojectmap.R
 import ru.tsu.mobileprojectmap.ui.screens.map.components.CanvasMap
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.ui.graphics.graphicsLayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,7 +103,10 @@ fun MapScreen(
                 }
 
                 Button(
-                    onClick = { },
+                    onClick = {
+                        viewModel.findPath()
+                        showBottomSheet = false
+                              },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Запустить A*")
@@ -153,39 +159,41 @@ fun MapScreen(
                     .horizontalScroll(horizontalScroll)
 
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.campus_map),
-                    contentDescription = "Карта",
-                    modifier = Modifier.size(1300.dp,1300.dp),
-                    contentScale = ContentScale.FillBounds
-                )
-                CanvasMap(
-                    cells = uiState.cells,
-                    onCellClick = { row, col ->
-                        viewModel.onCellClick(row, col)
-                    },
-                    worldWidth = 1300.dp,
-                    worldHeight = 1300.dp,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+                    Image(
+                        painter = painterResource(id = R.drawable.campus_map),
+                        contentDescription = "Карта",
+                        modifier = Modifier.size(1300.dp, 1300.dp),
+                        contentScale = ContentScale.FillBounds
+                    )
+                    CanvasMap(
+                        cells = uiState.cells,
+                        path = uiState.path,
+                        onCellClick = { row, col ->
+                            viewModel.onCellClick(row, col)
+                        },
+                        worldWidth = 1300.dp,
+                        worldHeight = 1300.dp,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
 
 
-            FloatingActionButton(
-                onClick = { showBottomSheet = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 10.dp)
-                    .padding(bottom = 24.dp)
-                    .navigationBarsPadding()
-                    .size(56.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Открыть меню"
-                )
+                FloatingActionButton(
+                    onClick = { showBottomSheet = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 10.dp)
+                        .padding(bottom = 24.dp)
+                        .navigationBarsPadding()
+                        .size(56.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Открыть меню"
+                    )
+                }
             }
         }
     }
-}
+

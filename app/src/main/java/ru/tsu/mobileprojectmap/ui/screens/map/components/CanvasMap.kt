@@ -13,6 +13,7 @@ import ru.tsu.mobileprojectmap.domain.model.Point
 import ru.tsu.mobileprojectmap.ui.screens.map.model.CellType
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapCell
 
+
 @Composable
 fun CanvasMap(
     cells: List<List<MapCell>>,
@@ -55,7 +56,7 @@ fun CanvasMap(
                     CellType.EMPTY -> Color.Transparent
                     CellType.START -> Color(0xAA4CAF50)
                     CellType.FINISH -> Color(0xAAF44336)
-                    CellType.OBSTACLE -> Color(0xCC424242)
+                    CellType.OBSTACLE -> Color(0x33000000)
                 }
 
                 if (cell.type != CellType.EMPTY) {
