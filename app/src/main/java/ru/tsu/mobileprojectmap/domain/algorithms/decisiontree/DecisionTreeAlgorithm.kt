@@ -1,5 +1,7 @@
 package ru.tsu.mobileprojectmap.domain.algorithms.decisiontree
 
+import kotlin.math.log2
+
 object DecisionTreeAlgorithm {
     fun biuld(sample: List<TrainingSample>): DecisionTreeResult {
         require(sample.isNotEmpty()) {"Нету данных"}
@@ -14,7 +16,25 @@ object DecisionTreeAlgorithm {
         sample: List<TrainingSample>,
         availableFeatures: List<String>
     ): DecisionTreeNode {
-        TODO();
+
+        if (allSamplesHaveSameLabel(sample)) {
+            return DecisionTreeNode.LeafNode(getMostCommonLabel(sample))
+        }
+
+        if (availableFeatures.isEmpty()) {
+            return DecisionTreeNode.LeafNode(getMostCommonLabel(sample))
+        }
+
+        val bestFeature = chooseBestFeature(sample, availableFeatures)
+        val groupedSamples = groupByFeature(sample, bestFeature)
+        val remainingFeatures = availableFeatures - bestFeature
+
+        val branches = groupedSamples.mapValues { (_, subset) -> buildNode(subset, remainingFeatures) }
+
+        return DecisionTreeNode.DecisionNode (
+            featureName = bestFeature,
+            branches = branches
+        )
     }
 
     private fun allSamplesHaveSameLabel(sample: List<TrainingSample>): Boolean {
@@ -39,7 +59,37 @@ object DecisionTreeAlgorithm {
         sample: List<TrainingSample>,
         availableFeatures: List<String>
     ): String {
-        return availableFeatures.first()
+        return availableFeatures.maxByOrNull { feature ->
+            calculateInformationsonGain(sample, feature)
+        } ?: throw IllegalStateException("Не подхрдящий элемент")
+    }
+
+    private fun calculateEntropy(sample: List<TrainingSample>): Double {
+        val totalCount = sample.size.toDouble()
+
+        val labelCounts = sample.groupingBy { it.label }.eachCount()
+
+        return labelCounts.values.sumOf() { count ->
+            val probability = count / totalCount
+            -probability * log2(probability)
+        }
+    }
+
+    private fun calculateInformationsonGain(
+        sample: List<TrainingSample>,
+        featureName: String
+    ): Double {
+        val totalEntropy = calculateEntropy(sample)
+        val totalCount = sample.size.toDouble()
+
+        val groupedSamples = groupByFeature(sample, featureName)
+
+        val weightEntropy = groupedSamples.values.sumOf { subset ->
+            val sunsetProbably = subset.size / totalCount
+            sunsetProbably * calculateEntropy(subset)
+        }
+
+        return totalEntropy - weightEntropy
     }
 
 }
