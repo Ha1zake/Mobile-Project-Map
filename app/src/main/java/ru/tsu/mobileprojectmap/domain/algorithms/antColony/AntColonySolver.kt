@@ -2,6 +2,7 @@ package ru.tsu.mobileprojectmap.domain.algorithms.antColony
 
 import android.util.Log.v
 import ru.tsu.mobileprojectmap.domain.model.Landmark
+import java.lang.Math.pow
 
 class AntColonySolver {
     private val iterations = 100
@@ -17,26 +18,58 @@ class AntColonySolver {
         distances: List<List<Double>>,
         pheromones: List<List<Double>>
     ): Ant {
-        val visited = MutableList<Int>()
+        val visited = mutableListOf<Int>()
         visited.add(startIndex)
 
+        var routeLength = 0.0
         var current = startIndex
-        var length = 0.0
 
-        while (visited.size < distances.size) {
 
+        while (visited.size != distances.size) {
+            var next = -1
+            var bestScore = Double.MIN_VALUE
+
+            for (i in 0 until distances.size) {
+                if (i in visited) continue
+                val score = pow(pheromones[current][i],alpha) * pow((1 / distances[current][i]), beta)
+
+                if (score > bestScore) {
+                    bestScore = score
+                    next = i
+                }
+            }
+            routeLength += distances[current][next]
+            visited.add(next)
+            current = next
+        }
+        val ant = Ant(visited, current, routeLength)
+
+        return ant
+    }
+
+    private fun evaporatePheromones(pheromones: MutableList<MutableList<Double>>) {
+        val size = pheromones.size
+        for (i in 0 until size) {
+            for (j in 0 until size) {
+                pheromones[i][j] = pheromones[i][j] * (1 - evaporation)
+            }
         }
     }
 
-    private fun evaporatePheromones(pheromones: List<List<Double>>) {
-        TODO()
-    }
-
     private fun depositPheromones(
-        pheromones: List<List<Double>>,
-         ants: List<Ant>
+        pheromones: MutableList<MutableList<Double>>,
+        ants: List<Ant>
     ) {
-        TODO()
+        for (ant in ants) {
+            val delta = q/ant.routeLength
+
+            for (v in 0 until ant.visited.size - 1) {
+                val from = ant.visited[v]
+                val to = ant.visited[v+1]
+                pheromones[from][to] += delta
+                pheromones[to][from] += delta
+            }
+        }
     }
 
     fun solve (
@@ -79,6 +112,6 @@ class AntColonySolver {
             evaporatePheromones(pheromones)
             depositPheromones(pheromones, ants)
         }
-        return bestRoute.map { landmarks[it] }
+        return AntColonyResult(bestRoute, bestLength)
     }
 }
