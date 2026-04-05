@@ -1,8 +1,8 @@
 package ru.tsu.mobileprojectmap.domain.algorithms.antColony
 
-import android.util.Log.v
 import ru.tsu.mobileprojectmap.domain.model.Landmark
-import java.lang.Math.pow
+import kotlin.math.pow
+import kotlin.random.Random
 
 class AntColonySolver {
     private val iterations = 100
@@ -12,6 +12,41 @@ class AntColonySolver {
     private val beta = 2.0
     private val q = 100.0
 
+
+    private fun chooseNextIndex(
+        current: Int,
+        visited: List<Int>,
+        distances: List<List<Double>>,
+        pheromones: List<List<Double>>
+    ) : Int {
+        val candidates = mutableListOf<Pair<Int, Double>>()
+        for (ind in 0 until distances.size) {
+            if (ind in visited) continue
+            val score = pheromones[current][ind].pow(alpha) * (1 / distances[current][ind]).pow(beta)
+            candidates.add(ind to score)
+        }
+        if (candidates.isEmpty()) return -1
+        var totalScore = 0.0
+
+        for ((_, score) in candidates) {
+            totalScore += score
+        }
+
+        if (totalScore == 0.0) {
+            return candidates.first().first
+        }
+
+        val randomValue = Random.nextDouble(0.0, totalScore)
+        var cumulative = 0.0
+
+        for ((index, score) in candidates) {
+            cumulative += score
+            if (randomValue <= cumulative) {
+                return index
+            }
+        }
+        return candidates.last().first
+    }
 
     private fun buildRoute(
         startIndex: Int,
@@ -26,25 +61,15 @@ class AntColonySolver {
 
 
         while (visited.size != distances.size) {
-            var next = -1
-            var bestScore = Double.MIN_VALUE
+            val next = chooseNextIndex(current, visited, distances, pheromones)
+            require (next != -1) { "Next not found" }
 
-            for (i in 0 until distances.size) {
-                if (i in visited) continue
-                val score = pow(pheromones[current][i],alpha) * pow((1 / distances[current][i]), beta)
-
-                if (score > bestScore) {
-                    bestScore = score
-                    next = i
-                }
-            }
             routeLength += distances[current][next]
             visited.add(next)
             current = next
         }
-        val ant = Ant(visited, current, routeLength)
 
-        return ant
+        return Ant(visited, current, routeLength)
     }
 
     private fun evaporatePheromones(pheromones: MutableList<MutableList<Double>>) {
@@ -76,8 +101,8 @@ class AntColonySolver {
         landmarks: List<Landmark>,
         distances: List<List<Double>>,
         start: Landmark
-    ): AntColonyResult {
-        if (landmarks.isEmpty()) return AntColonyResult(emptyList(), -1.0)
+    ): List<Landmark> {
+        if (landmarks.isEmpty()) return emptyList()
 
         val startIndex = landmarks.indexOf(start)
         require(startIndex != -1) {"Start landmark not found"}
@@ -112,6 +137,6 @@ class AntColonySolver {
             evaporatePheromones(pheromones)
             depositPheromones(pheromones, ants)
         }
-        return AntColonyResult(bestRoute, bestLength)
+        return bestRoute.map { landmarks[it] }
     }
 }
