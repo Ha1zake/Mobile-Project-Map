@@ -22,7 +22,9 @@ class AntColonySolver {
         val candidates = mutableListOf<Pair<Int, Double>>()
         for (ind in 0 until distances.size) {
             if (ind in visited) continue
-            val score = pheromones[current][ind].pow(alpha) * (1 / distances[current][ind]).pow(beta)
+            val distance = distances[current][ind]
+            if (distance <= 0.0) continue
+            val score = pheromones[current][ind].pow(alpha) * (1 / distance).pow(beta)
             candidates.add(ind to score)
         }
         if (candidates.isEmpty()) return -1
@@ -86,6 +88,7 @@ class AntColonySolver {
         ants: List<Ant>
     ) {
         for (ant in ants) {
+            if (ant.routeLength <= 0.0) continue
             val delta = q/ant.routeLength
 
             for (v in 0 until ant.visited.size - 1) {
