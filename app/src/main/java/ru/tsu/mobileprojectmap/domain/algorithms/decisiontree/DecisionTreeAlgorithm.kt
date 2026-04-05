@@ -1,6 +1,5 @@
-import ru.tsu.mobileprojectmap.domain.algorithms.decisiontree.DecisionTreeNode
-import ru.tsu.mobileprojectmap.domain.algorithms.decisiontree.DecisionTreeResult
-import ru.tsu.mobileprojectmap.domain.algorithms.decisiontree.TrainingSample
+package ru.tsu.mobileprojectmap.domain.algorithms.decisiontree
+
 import kotlin.math.log2
 
 object DecisionTreeAlgorithm {
@@ -46,15 +45,16 @@ object DecisionTreeAlgorithm {
     private fun getMostCommonLabel(samples: List<TrainingSample>): String {
         return samples.groupingBy { it.label }
             .eachCount()
-            .maxByOrNull { it.value }!!
-            .key
+            .maxByOrNull { it.value }
+            ?.key
+            ?: error("Не удалось определить метку")
     }
 
     private fun groupByFeature(
         samples: List<TrainingSample>,
         featureName: String
     ): Map<String, List<TrainingSample>> {
-        return samples.groupBy { it.features[featureName] ?: "Неизвестный" }
+        return samples.groupBy { it.features[featureName] ?: UNKNOWN_FEATURE_VALUE }
     }
 
     private fun chooseBestFeature(
@@ -91,4 +91,6 @@ object DecisionTreeAlgorithm {
 
         return totalEntropy - weightedEntropy
     }
+
+    private const val UNKNOWN_FEATURE_VALUE = "Неизвестный"
 }

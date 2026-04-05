@@ -5,10 +5,10 @@ import ru.tsu.mobileprojectmap.domain.algorithms.decisiontree.DecisionTreePredic
 import ru.tsu.mobileprojectmap.domain.algorithms.decisiontree.PredictionResult
 
 class PredictPlaceUseCase {
-    operator fun invoke (
+    operator fun invoke(
         root: DecisionTreeNode,
-        feature: Map<String, String>,
+        features: Map<String, String>
     ): PredictionResult {
-        return DecisionTreePredictor.predict(root, feature)
+        return DecisionTreePredictor.predict(root, features)
     }
 }

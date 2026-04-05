@@ -5,25 +5,45 @@ object DecisionTreePredictor {
     fun predict(
         tree: DecisionTreeResult,
         input: Map<String, String>
-    ): String {
-        return predictNode(tree.root, input)
+    ): PredictionResult {
+        return predict(tree.root, input)
+    }
+
+    fun predict(
+        root: DecisionTreeNode,
+        input: Map<String, String>
+    ): PredictionResult {
+        val decisionPath = mutableListOf<String>()
+        val predictedLabel = predictNode(root, input, decisionPath)
+        return PredictionResult(
+            predictedLabel = predictedLabel,
+            decisionPath = decisionPath
+        )
     }
 
     private fun predictNode(
         node: DecisionTreeNode,
-        input: Map<String, String>
+        input: Map<String, String>,
+        decisionPath: MutableList<String>
     ): String {
         return when (node) {
-            is DecisionTreeNode.LeafNode -> node.label
+            is DecisionTreeNode.LeafNode -> {
+                decisionPath += "Результат: ${node.label}"
+                node.label
+            }
 
             is DecisionTreeNode.DecisionNode -> {
                 val featureValue = input[node.featureName]
-                    ?: return fallbackPrediction(node)
+                decisionPath += "${node.featureName} = ${featureValue ?: MISSING_FEATURE_VALUE}"
 
-                val nextNode = node.branches[featureValue]
-                    ?: return fallbackPrediction(node)
-
-                predictNode(nextNode, input)
+                val nextNode = featureValue?.let { node.branches[it] }
+                if (nextNode == null) {
+                    val fallbackLabel = fallbackPrediction(node)
+                    decisionPath += "Использован fallback: $fallbackLabel"
+                    fallbackLabel
+                } else {
+                    predictNode(nextNode, input, decisionPath)
+                }
             }
         }
     }
@@ -36,7 +56,7 @@ object DecisionTreePredictor {
             .eachCount()
             .maxByOrNull { it.value }
             ?.key
-            ?: "Неизвестно"
+            ?: UNKNOWN_LABEL
     }
 
     private fun collectLeafResults(node: DecisionTreeNode): List<String> {
@@ -47,4 +67,7 @@ object DecisionTreePredictor {
             }
         }
     }
+
+    private const val MISSING_FEATURE_VALUE = "<missing>"
+    private const val UNKNOWN_LABEL = "Неизвестно"
 }
