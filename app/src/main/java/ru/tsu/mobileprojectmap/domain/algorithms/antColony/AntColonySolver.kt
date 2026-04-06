@@ -1,6 +1,5 @@
 package ru.tsu.mobileprojectmap.domain.algorithms.antColony
 
-import android.opengl.Visibility
 import ru.tsu.mobileprojectmap.domain.model.Landmark
 import kotlin.math.pow
 import kotlin.random.Random
@@ -28,11 +27,10 @@ class AntColonySolver {
         visitedFlag: BooleanArray,
         distances: List<List<Double>>,
         pheromones: List<List<Double>>,
-        visibility: List<List<Double>>,
-        size: Int
+        visibility: List<List<Double>>
     ) : Int {
         val candidates = mutableListOf<Pair<Int, Double>>()
-        for (ind in 0 until size) {
+        for (ind in 0 until visibility.size) {
             if (visitedFlag[ind]) continue
             val distance = distances[current][ind]
             if (distance <= 0.0) continue
@@ -78,7 +76,7 @@ class AntColonySolver {
         var current = startIndex
 
         while (visited.size != size) {
-            val next = chooseNextIndex(current, visitedFlag, distances, pheromones, visibility, size)
+            val next = chooseNextIndex(current, visitedFlag, distances, pheromones, visibility)
             require (next != -1) { "Next not found" }
 
             routeLength += distances[current][next]
