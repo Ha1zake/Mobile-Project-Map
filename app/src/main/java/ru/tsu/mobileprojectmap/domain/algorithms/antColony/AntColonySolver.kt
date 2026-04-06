@@ -1,30 +1,42 @@
 package ru.tsu.mobileprojectmap.domain.algorithms.antColony
 
+import android.opengl.Visibility
 import ru.tsu.mobileprojectmap.domain.model.Landmark
 import kotlin.math.pow
 import kotlin.random.Random
 
 class AntColonySolver {
     private val iterations = 100
-    private val antsCount = 20
+    private val antsCount = 10
     private val evaporation = 0.3
     private val alpha = 1.0
     private val beta = 2.0
-    private val q = 100.0
+    private val q = 50.0
 
-
+    private fun createVisibilityMatrix(
+        distances: List<List<Double>>
+    ): List<List<Double>> {
+        return List(distances.size) { i ->
+            List(distances[i].size) { j ->
+                val d = distances[i][j]
+                if (i == j || d <= 0.0) 0.0 else 1.0 / d
+            }
+        }
+    }
     private fun chooseNextIndex(
         current: Int,
-        visited: List<Int>,
+        visitedFlag: BooleanArray,
         distances: List<List<Double>>,
-        pheromones: List<List<Double>>
+        pheromones: List<List<Double>>,
+        visibility: List<List<Double>>,
+        size: Int
     ) : Int {
         val candidates = mutableListOf<Pair<Int, Double>>()
-        for (ind in 0 until distances.size) {
-            if (ind in visited) continue
+        for (ind in 0 until size) {
+            if (visitedFlag[ind]) continue
             val distance = distances[current][ind]
             if (distance <= 0.0) continue
-            val score = pheromones[current][ind].pow(alpha) * (1 / distance).pow(beta)
+            val score = pheromones[current][ind].pow(alpha) * visibility[current][ind].pow(beta)
             candidates.add(ind to score)
         }
         if (candidates.isEmpty()) return -1
@@ -53,31 +65,38 @@ class AntColonySolver {
     private fun buildRoute(
         startIndex: Int,
         distances: List<List<Double>>,
-        pheromones: List<List<Double>>
+        pheromones: List<List<Double>>,
+        visibility: List<List<Double>>
     ): Ant {
+        val size = distances.size
         val visited = mutableListOf<Int>()
+        val visitedFlag = BooleanArray(size)
         visited.add(startIndex)
+        visitedFlag[startIndex] = true
 
         var routeLength = 0.0
         var current = startIndex
 
-
-        while (visited.size != distances.size) {
-            val next = chooseNextIndex(current, visited, distances, pheromones)
+        while (visited.size != size) {
+            val next = chooseNextIndex(current, visitedFlag, distances, pheromones, visibility, size)
             require (next != -1) { "Next not found" }
 
             routeLength += distances[current][next]
             visited.add(next)
+            visitedFlag[next] = true
             current = next
         }
 
         return Ant(visited, current, routeLength)
     }
 
-    private fun evaporatePheromones(pheromones: MutableList<MutableList<Double>>) {
-        val size = pheromones.size
+    private fun evaporatePheromones(
+        pheromones: MutableList<MutableList<Double>>,
+        size: Int
+    ) {
         for (i in 0 until size) {
             for (j in 0 until size) {
+                if (i == j) continue
                 pheromones[i][j] = pheromones[i][j] * (1 - evaporation)
             }
         }
@@ -116,6 +135,7 @@ class AntColonySolver {
             MutableList(size) { 1.0 }
         }
 
+        val visibility = createVisibilityMatrix(distances)
         var bestRoute: List<Int> = emptyList()
         var bestLength = Double.MAX_VALUE
 
@@ -126,7 +146,8 @@ class AntColonySolver {
                 val ant = buildRoute(
                     startIndex = startIndex,
                     distances = distances,
-                    pheromones = pheromones
+                    pheromones = pheromones,
+                    visibility = visibility
                 )
 
                 ants.add(ant)
@@ -137,7 +158,7 @@ class AntColonySolver {
                 }
             }
 
-            evaporatePheromones(pheromones)
+            evaporatePheromones(pheromones, size)
             depositPheromones(pheromones, ants)
         }
         return bestRoute.map { landmarks[it] }
