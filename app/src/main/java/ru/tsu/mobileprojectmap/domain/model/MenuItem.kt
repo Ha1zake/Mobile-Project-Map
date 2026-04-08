@@ -1,4 +1,16 @@
 package ru.tsu.mobileprojectmap.domain.model
 
-class MenuItem {
+data class MenuItem(
+    val id: String,
+    val name: String,
+    val category: FoodCategory,
+    val placeId: String
+)
+
+enum class FoodCategory {
+    COFFEE,
+    PANCAKES,
+    FULL_MEAL,
+    SNACK,
+    DISPOSABLE_TABLEWARE
 }

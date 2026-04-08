@@ -18,6 +18,11 @@ import ru.tsu.mobileprojectmap.domain.algorithms.astar.AStarPathfinder
 import ru.tsu.mobileprojectmap.domain.model.GridCell
 import ru.tsu.mobileprojectmap.domain.model.Point
 import ru.tsu.mobileprojectmap.domain.usecase.FindPathUseCase
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     var uiState by mutableStateOf(MapUIState())
@@ -58,11 +63,15 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resetMap() {
+        pathJob?.cancel()
         uiState = uiState.copy(
             cells = createGrid(uiState.rows, uiState.cols),
             startCell = null,
             finishCell = null,
-            path = emptyList()
+            path = emptyList(),
+            visitedCells = emptyList(),
+            currentCell = null,
+            isRunning = false
         )
     }
 
@@ -89,12 +98,15 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-
         uiState = uiState.copy(
             cells = updatedCells,
             startCell = updatedCells[targetCell.row][targetCell.col],
-            path = emptyList()
+            path = emptyList(),
+            visitedCells = emptyList(),
+            currentCell = null,
+            isRunning = false
         )
+
     }
 
     private fun setFinishCell(row: Int, col: Int) {
@@ -115,7 +127,10 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         uiState = uiState.copy(
             cells = updatedCells,
             finishCell = updatedCells[targetCell.row][targetCell.col],
-            path = emptyList()
+            path = emptyList(),
+            visitedCells = emptyList(),
+            currentCell = null,
+            isRunning = false
         )
     }
 
@@ -129,15 +144,13 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         val updatedCells = uiState.cells.map { rowList ->
             rowList.map { cell ->
                 if (cell.row == row && cell.col == col) {
-                    when (cell.baseType) {
-                        CellType.OBSTACLE -> cell.copy(
-                            type = CellType.EMPTY,
-                            baseType = CellType.EMPTY
-                        )
-                        CellType.EMPTY -> cell.copy(
-                            type = CellType.OBSTACLE,
-                            baseType = CellType.OBSTACLE
-                        )
+                    when {
+                        cell.type == CellType.OBSTACLE && cell.baseType == CellType.EMPTY -> {
+                            cell.copy(type = CellType.EMPTY, baseType = CellType.EMPTY)
+                        }
+                        cell.type == CellType.EMPTY && cell.baseType == CellType.EMPTY -> {
+                            cell.copy(type = CellType.OBSTACLE, baseType = CellType.EMPTY)
+                        }
                         else -> cell
                     }
                 } else {
@@ -148,7 +161,10 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
         uiState = uiState.copy(
             cells = updatedCells,
-            path = emptyList()
+            path = emptyList(),
+            visitedCells = emptyList(),
+            currentCell = null,
+            isRunning = false
         )
     }
 
@@ -201,13 +217,17 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         return purpleCount >= 2
     }
     private val findPathUseCase = FindPathUseCase(AStarPathfinder())
+    private var pathJob: Job? = null
     fun findPath() {
         val start = uiState.startCell
         val finish = uiState.finishCell
 
         if (start == null || finish == null) {
             uiState = uiState.copy(
-                path = emptyList()
+                path = emptyList(),
+                visitedCells = emptyList(),
+                currentCell = null,
+                isRunning = false
             )
             return
         }
@@ -219,16 +239,32 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
-        val resultPath = findPathUseCase.execute(
-            grid = grid,
-            start = Point(x = start.col, y = start.row),
-            end = Point(x = finish.col, y = finish.row)
-        )
+        pathJob?.cancel()
 
-        uiState = uiState.copy(
-            path = resultPath
-        )
+        pathJob = viewModelScope.launch(Dispatchers.Default) {
+            uiState = uiState.copy(
+                path = emptyList(),
+                visitedCells = emptyList(),
+                currentCell = null,
+                isRunning = true
+            )
+
+            val resultPath = findPathUseCase.execute(
+                grid = grid,
+                start = Point(x = start.col, y = start.row),
+                end = Point(x = finish.col, y = finish.row)
+            )
+
+            uiState = uiState.copy(
+                path = resultPath,
+                visitedCells = emptyList(),
+                currentCell = null,
+                isRunning = false
+            )
+        }
     }
+
+
     private fun findNearestWalkableCell(row: Int, col: Int): MapCell? {
         val rows = uiState.cells.size
         val cols = uiState.cells.firstOrNull()?.size ?: return null
