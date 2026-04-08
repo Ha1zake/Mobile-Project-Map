@@ -1,4 +1,8 @@
 package ru.tsu.mobileprojectmap.domain.model
 
-class Landmark {
-}
+data class Landmark(
+    val id: String,
+    val name: String,
+    val point: Point,
+    val description: String = ""
+)

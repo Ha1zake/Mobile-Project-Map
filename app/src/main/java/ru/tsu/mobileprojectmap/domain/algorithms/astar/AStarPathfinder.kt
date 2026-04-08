@@ -5,6 +5,17 @@ import ru.tsu.mobileprojectmap.domain.model.Point
 import java.util.PriorityQueue
 import kotlin.math.abs
 import kotlin.math.min
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+
+data class AStarStep(
+    val current: Point,
+    val openSet: List<Point>,
+    val closedSet: List<Point>,
+    val path: List<Point> = emptyList(),
+    val isFinished: Boolean = false
+)
 
 class AStarPathfinder {
     private val directions = listOf(
@@ -95,6 +106,100 @@ class AStarPathfinder {
         return emptyList()
     }
 
+    fun findPathWithSteps(
+        grid: List<GridCell>,
+        start: Point,
+        end: Point
+    ): Flow<AStarStep> = flow {
+        val openSet = PriorityQueue<Node>(compareBy { it.f })
+        val closedSet = mutableSetOf<Point>()
+
+        val startNode = Node(
+            point = start,
+            g = 0.0,
+            h = heuristic(start, end)
+        )
+
+        openSet.add(startNode)
+
+        val cellMap = grid.associateBy { it.point }
+        val nodeMap = mutableMapOf<Point, Node>()
+        nodeMap[start] = startNode
+
+        while (openSet.isNotEmpty()) {
+            val current = openSet.poll()
+
+            if (current.point == end) {
+                val finalPath = reconstructPath(current)
+                emit(
+                    AStarStep(
+                        current = current.point,
+                        openSet = openSet.map { it.point },
+                        closedSet = closedSet.toList(),
+                        path = finalPath,
+                        isFinished = true
+                    )
+                )
+                return@flow
+            }
+
+            closedSet.add(current.point)
+
+            emit(
+                AStarStep(
+                    current = current.point,
+                    openSet = openSet.map { it.point },
+                    closedSet = closedSet.toList(),
+                    path = emptyList(),
+                    isFinished = false
+                )
+            )
+
+            for (dir in directions) {
+                val neighbor = Point(
+                    current.point.x + dir.x,
+                    current.point.y + dir.y
+                )
+
+                if (neighbor in closedSet) continue
+
+                val cell = cellMap[neighbor] ?: continue
+
+                if (dir.x != 0 && dir.y != 0) {
+                    val first = cellMap[Point(current.point.x, neighbor.y)]
+                    val second = cellMap[Point(neighbor.x, current.point.y)]
+
+                    if (first?.isWalkable != true || second?.isWalkable != true) continue
+                }
+
+                if (!cell.isWalkable) continue
+
+                val neighborNode = nodeMap[neighbor] ?: Node(point = neighbor)
+                val cost = if (dir.x != 0 && dir.y != 0) 1.4 else 1.0
+                val newG = current.g + cost
+
+                if (newG < neighborNode.g) {
+                    neighborNode.g = newG
+                    neighborNode.parent = current
+                    neighborNode.h = heuristic(neighborNode.point, end)
+                    nodeMap[neighbor] = neighborNode
+                    openSet.add(neighborNode)
+                }
+            }
+
+
+        }
+
+        emit(
+            AStarStep(
+                current = start,
+                openSet = emptyList(),
+                closedSet = closedSet.toList(),
+                path = emptyList(),
+                isFinished = true
+            )
+        )
+    }
     private fun reconstructPath(node : Node) : List<Point> {
         val path = arrayListOf<Point>()
         var current : Node? = node
