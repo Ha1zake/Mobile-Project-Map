@@ -10,6 +10,6 @@ class BuildDecisionTreeUseCase {
         DecisionTreeValidator.validateCsv(csvText)
         val samples = DecisionTreeCsvParser.parse(csvText)
         DecisionTreeValidator.validateSamples(samples)
-        return DecisionTreeAlgorithm.biuld(samples)
+        return DecisionTreeAlgorithm.build(samples)
     }
 }
