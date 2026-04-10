@@ -10,8 +10,8 @@ data class TrainingSample (
 sealed class DecisionTreeNode {
 
     data class DecisionNode(
-    val featureName: String,
-    val branches: Map<String, DecisionTreeNode>
+        val featureName: String,
+        val branches: Map<String, DecisionTreeNode>
     ): DecisionTreeNode()
 
     data class LeafNode(

@@ -1,37 +1,34 @@
 package ru.tsu.mobileprojectmap.domain.algorithms.decisiontree
 
 object DecisionTreeCsvParser {
+
     fun parse(csvText: String): List<TrainingSample> {
+        val lines = csvText
+            .trim()
+            .lines()
+            .filter { it.isNotBlank() }
 
-        val lines = csvText.lines()
-            .map{it.trim()}
-            .filter { it.isNotEmpty() }
+        require(lines.size >= 2) { "CSV должен содержать заголовок и хотя бы одну строку данных" }
 
-        if (lines.isEmpty()) {
-            throw IllegalArgumentException("csv пуст")
-        }
-        val header = lines.first().split(",")
-        val datalines = lines.drop(1)
+        val header = lines.first().split(",").map { it.trim() }
+        val dataLines = lines.drop(1)
 
-        return datalines.map { lines ->
-            val values = lines.split(",")
+        return dataLines.map { line ->
+            val values = line.split(",").map { it.trim() }
 
-            if (values.size != header.size) {
-                throw IllegalArgumentException("неверный формат CSV")
+            require(values.size == header.size) {
+                "Неверный формат CSV: количество значений не совпадает с заголовком"
             }
 
-            val featureName = header.dropLast(1)
-            val featureValues = header.drop(1)
-
-            val feature = featureName.zip(featureValues).toMap()
+            val featureNames = header.dropLast(1)
+            val featureValues = values.dropLast(1)
+            val features = featureNames.zip(featureValues).toMap()
             val label = values.last()
 
-            TrainingSample (
-                features = feature,
-                label = label,
+            TrainingSample(
+                features = features,
+                label = label
             )
-
         }
-
     }
 }
