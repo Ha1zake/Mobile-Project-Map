@@ -5,6 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import ru.tsu.mobileprojectmap.ui.screens.map.MapScreen
+import ru.tsu.mobileprojectmap.ui.screens.neural.NeuralScreen
 
 @Composable
 fun AppNavGraph(
@@ -18,6 +19,10 @@ fun AppNavGraph(
             MapScreen(
                 onBack = { }
             )
+        }
+
+        composable(Routes.Neural.route) {
+            NeuralScreen()
         }
     }
 }
