@@ -10,15 +10,16 @@ class FitnessCalculator {
         places: List<Place>,
         menuItems: List<MenuItem>,
         distances: List<List<Double>>,
-        startIndex: Int,
+        startDistances: List<Double>,
         request: MealRequest
         ) : Double {
         val genes = individual.genes
 
         if (genes.isEmpty()) return Double.NEGATIVE_INFINITY
         if (genes.toSet().size != genes.size) return Double.NEGATIVE_INFINITY
+        if (startDistances.size != places.size) return Double.NEGATIVE_INFINITY
 
-        val routeDistance =  getRouteDistance(genes, distances, startIndex)
+        val routeDistance =  getRouteDistance(genes, distances, startDistances)
 
         val selectedPlaces = getSelectedPlaces(genes, places)
 
@@ -53,7 +54,7 @@ class FitnessCalculator {
                 closedPlacesCount * 500.0
     }
 
-    private fun getTotalPrice(
+    fun getTotalPrice(
         selectedMenuItems: List<MenuItem>,
         request: MealRequest
     ) : Double {
@@ -72,7 +73,7 @@ class FitnessCalculator {
         return total
     }
 
-    private fun getCoveredCategories(
+    fun getCoveredCategories(
         selectedMenuItems: List<MenuItem>,
         request: MealRequest
     ) : Set<FoodCategory> {
@@ -81,7 +82,7 @@ class FitnessCalculator {
     }
 
 
-    private fun getSelectedMenuItems(
+    fun getSelectedMenuItems(
         selectedPlaces: List<Place>,
         menuItems: List<MenuItem>
     ) : List<MenuItem> {
@@ -89,7 +90,7 @@ class FitnessCalculator {
         return menuItems.filter { it.placeId in placeIds }
     }
 
-    private fun getClosedPlacesCount(
+    fun getClosedPlacesCount(
         selectedPlaces: List<Place>,
         currentHour: Int
     ) : Int {
@@ -103,7 +104,7 @@ class FitnessCalculator {
         return count
     }
 
-    private fun getSelectedPlaces(
+    fun getSelectedPlaces(
         genes: List<Int>,
         places: List<Place>
     ) : List<Place> {
@@ -113,11 +114,11 @@ class FitnessCalculator {
     private fun getRouteDistance(
         genes: List<Int>,
         distances: List<List<Double>>,
-        startIndex: Int,
+        startDistances: List<Double>,
     ) : Double {
         var dist = 0.0
 
-        dist += distances[startIndex][genes[0]]
+        dist += startDistances[genes[0]]
 
         for (i in 0 until genes.size - 1) {
             dist += distances[genes[i]][genes[i+1]]
