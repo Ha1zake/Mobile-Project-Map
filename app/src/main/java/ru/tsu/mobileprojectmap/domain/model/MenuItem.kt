@@ -4,7 +4,8 @@ data class MenuItem(
     val id: String,
     val name: String,
     val category: FoodCategory,
-    val placeId: String
+    val placeId: String,
+    val price: Double
 )
 
 enum class FoodCategory {
