@@ -37,7 +37,7 @@ class FitnessCalculator {
             request
         )
 
-        val totalPrice = totalPrice(
+        val totalPrice = getTotalPrice(
             selectedMenuItems,
             request
         )
@@ -53,7 +53,7 @@ class FitnessCalculator {
                 closedPlacesCount * 500.0
     }
 
-    private fun totalPrice(
+    private fun getTotalPrice(
         selectedMenuItems: List<MenuItem>,
         request: MealRequest
     ) : Double {
