@@ -1,13 +1,13 @@
 package ru.tsu.mobileprojectmap.domain.algorithms.astar
 
-import ru.tsu.mobileprojectmap.domain.model.GridCell
-import ru.tsu.mobileprojectmap.domain.model.Point
 import java.util.PriorityQueue
-import kotlin.math.abs
-import kotlin.math.min
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlin.math.abs
+import kotlin.math.min
+import ru.tsu.mobileprojectmap.domain.model.GridCell
+import ru.tsu.mobileprojectmap.domain.model.Point
 
 data class AStarStep(
     val current: Point,
@@ -29,19 +29,18 @@ class AStarPathfinder {
         Point(-1, -1)
     )
 
-    private fun heuristic(a: Point, b: Point) : Double {
+    private fun heuristic(a: Point, b: Point): Double {
         val dx = abs(a.x - b.x)
         val dy = abs(a.y - b.y)
-        val dist = dx + dy + (1.4 - 2) * min(dx, dy)
-        return dist
+        return dx + dy + (1.4 - 2) * min(dx, dy)
     }
 
     fun findPath(
-        grid : List<GridCell>,
-        start : Point,
-        end : Point
+        grid: List<GridCell>,
+        start: Point,
+        end: Point
     ): List<Point> {
-        val openSet = PriorityQueue<Node>(compareBy{it.f})
+        val openSet = PriorityQueue<Node>(compareBy { it.f })
         val closedSet = mutableSetOf<Point>()
 
         val startNode = Node(
@@ -74,21 +73,16 @@ class AStarPathfinder {
 
                 val cell = cellMap[neighbor] ?: continue
 
-                if (dir.x != 0  && dir.y != 0) {
-                    val first =
-                        cellMap[Point(current.point.x, neighbor.y)]
-                    val second =
-                        cellMap[Point(neighbor.x, current.point.y)]
-
+                if (dir.x != 0 && dir.y != 0) {
+                    val first = cellMap[Point(current.point.x, neighbor.y)]
+                    val second = cellMap[Point(neighbor.x, current.point.y)]
                     if (first?.isWalkable != true || second?.isWalkable != true) continue
                 }
 
                 if (!cell.isWalkable) continue
 
                 val neighborNode = nodeMap[neighbor] ?: Node(point = neighbor)
-
                 val cost = if (dir.x != 0 && dir.y != 0) 1.4 else 1.0
-
                 val newG = current.g + cost
 
                 if (newG < neighborNode.g) {
@@ -98,9 +92,7 @@ class AStarPathfinder {
                     nodeMap[neighbor] = neighborNode
                     openSet.add(neighborNode)
                 }
-
             }
-
         }
 
         return emptyList()
@@ -125,6 +117,7 @@ class AStarPathfinder {
         val cellMap = grid.associateBy { it.point }
         val nodeMap = mutableMapOf<Point, Node>()
         nodeMap[start] = startNode
+        var iteration = 0
 
         while (openSet.isNotEmpty()) {
             val current = openSet.poll()
@@ -144,16 +137,22 @@ class AStarPathfinder {
             }
 
             closedSet.add(current.point)
+            iteration++
 
-            emit(
-                AStarStep(
-                    current = current.point,
-                    openSet = openSet.map { it.point },
-                    closedSet = closedSet.toList(),
-                    path = emptyList(),
-                    isFinished = false
+            // Не отправляем в UI каждый шаг: это сильно нагружает Compose на больших картах.
+            if (iteration == 1 || iteration % 4 == 0) {
+                emit(
+                    AStarStep(
+                        current = current.point,
+                        openSet = openSet.map { it.point },
+                        closedSet = closedSet.toList(),
+                        path = emptyList(),
+                        isFinished = false
+                    )
                 )
-            )
+            }
+
+            delay(24)
 
             for (dir in directions) {
                 val neighbor = Point(
@@ -168,7 +167,6 @@ class AStarPathfinder {
                 if (dir.x != 0 && dir.y != 0) {
                     val first = cellMap[Point(current.point.x, neighbor.y)]
                     val second = cellMap[Point(neighbor.x, current.point.y)]
-
                     if (first?.isWalkable != true || second?.isWalkable != true) continue
                 }
 
@@ -186,8 +184,6 @@ class AStarPathfinder {
                     openSet.add(neighborNode)
                 }
             }
-
-
         }
 
         emit(
@@ -200,15 +196,16 @@ class AStarPathfinder {
             )
         )
     }
-    private fun reconstructPath(node : Node) : List<Point> {
+
+    private fun reconstructPath(node: Node): List<Point> {
         val path = arrayListOf<Point>()
-        var current : Node? = node
+        var current: Node? = node
 
         while (current != null) {
             path.add(current.point)
             current = current.parent
         }
+
         return path.reversed()
     }
-
 }

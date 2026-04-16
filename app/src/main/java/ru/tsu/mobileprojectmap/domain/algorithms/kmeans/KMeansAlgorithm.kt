@@ -18,6 +18,7 @@ object KMeansAlgorithm {
             val assignments = assignPointsToClusters(input.points, centroids)
             val newCentroids = recomputeCentroids(assignments, centroids)
             clusters = buildClusters(assignments, newCentroids)
+            pointToCluster = buildPointToClusterMap(assignments)
 
             val shift = calculateMaxCentroidShift(centroids, newCentroids)
             centroids = newCentroids
@@ -95,6 +96,18 @@ object KMeansAlgorithm {
                 points = assignments[index].orEmpty(),
                 colorSeed = index,
             )
+        }
+    }
+
+    private fun buildPointToClusterMap(
+        assignments: Map<Int, List<ClusterPoint>>
+    ): Map<String, Int> {
+        return buildMap {
+            assignments.forEach { (clusterId, points) ->
+                points.forEach { point ->
+                    put(point.id, clusterId)
+                }
+            }
         }
     }
 

@@ -36,8 +36,13 @@ class KMeansViewModel : ViewModel() {
         k: Int = 3,
         filterType: KMeansFilterType = uiState.filterType
     ) {
-        viewModelScope.launch(Dispatchers.Default) {
+        uiState = uiState.copy(
+            isRunning = true,
+            error = null,
+            filterType = filterType
+        )
 
+        viewModelScope.launch(Dispatchers.Default) {
             val filteredPlaces = when (filterType) {
                 KMeansFilterType.CAFE_ONLY ->
                     SamplePlaces.places.filter { it.type == PlaceType.CAFE }
