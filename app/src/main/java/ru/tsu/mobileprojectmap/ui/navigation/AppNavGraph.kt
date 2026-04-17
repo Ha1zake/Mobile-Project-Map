@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import ru.tsu.mobileprojectmap.ui.screens.decisiontree.DecisionTreeScreen
+import ru.tsu.mobileprojectmap.ui.screens.home.HomeScreen
 import ru.tsu.mobileprojectmap.ui.screens.map.MapScreen
 import ru.tsu.mobileprojectmap.ui.screens.neural.NeuralScreen
 
@@ -13,16 +15,32 @@ fun AppNavGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Routes.Map.route
+        startDestination = Routes.Home.route
     ) {
+        composable(Routes.Home.route) {
+            HomeScreen(
+                onOpenMap = { navController.navigate(Routes.Map.route) },
+                onOpenDecisionTree = { navController.navigate(Routes.DecisionTree.route) },
+                onOpenNeural = { navController.navigate(Routes.Neural.route) }
+            )
+        }
+
         composable(Routes.Map.route) {
             MapScreen(
-                onBack = { }
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.DecisionTree.route) {
+            DecisionTreeScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 
         composable(Routes.Neural.route) {
-            NeuralScreen()
+            NeuralScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

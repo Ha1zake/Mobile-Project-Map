@@ -1,4 +1,5 @@
 package ru.tsu.mobileprojectmap.ui.screens.map
+
 import ru.tsu.mobileprojectmap.domain.model.Point
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapCell
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
@@ -11,7 +12,9 @@ data class MapUIState(
     val currentCell: Point? = null,
     val isRunning: Boolean = false,
     val cells: List<List<MapCell>> = emptyList(),
-    val currentMode: MapEditMode = MapEditMode.SET_OBSTACLE,
+    val currentMode: MapEditMode = MapEditMode.VIEW,
     val startCell: MapCell? = null,
-    val finishCell: MapCell? = null
+    val finishCell: MapCell? = null,
+    val statusMessage: String = "Просматривайте карту или выберите режим в меню",
+    val pathFound: Boolean? = null
 )

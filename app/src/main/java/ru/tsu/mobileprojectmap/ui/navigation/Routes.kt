@@ -1,6 +1,8 @@
 package ru.tsu.mobileprojectmap.ui.navigation
 
 sealed class Routes(val route: String) {
+    data object Home : Routes("home")
     data object Map : Routes("map")
-    object Neural : Routes("neural")
+    data object DecisionTree : Routes("decision_tree")
+    data object Neural : Routes("neural")
 }
