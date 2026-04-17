@@ -239,7 +239,11 @@ class GeneticAlgorithm {
             selectedMenuItems.map { it.category }.toSet()
         )
 
-        if (coveredCategories.isEmpty()) {
+        if (coveredCategories.size != request.requiredCategories.size) {
+            return false
+        }
+
+        if (calculateTotalPrice(selectedMenuItems, request) > request.maxBudget) {
             return false
         }
 

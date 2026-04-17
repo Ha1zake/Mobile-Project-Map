@@ -28,6 +28,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,13 +53,7 @@ fun PlaceDetailsBottomSheet(
 ) {
     val placeReviewsViewModel: PlaceReviewsViewModel = viewModel()
     val reviewsState = placeReviewsViewModel.uiState
-    var selectedTabIndex by remember(place.id) { mutableStateOf(0) }
-
-    LaunchedEffect(place.id) {
-        placeReviewsViewModel.setPlace(place.id)
-    }
-
-
+    var selectedTabIndex by remember(place.id) { mutableIntStateOf(0) }
     var isAddingReview by remember(place.id) { mutableStateOf(false) }
     var formError by remember(place.id) { mutableStateOf<String?>(null) }
     var reviewText by remember(place.id) { mutableStateOf("") }
@@ -71,26 +66,28 @@ fun PlaceDetailsBottomSheet(
         }
     }
 
+    LaunchedEffect(place.id) {
+        placeReviewsViewModel.setPlace(place.id)
+    }
+
     fun resetForm() {
         formError = null
         reviewText = ""
         rating = null
-        for (i in cells.indices) cells[i] = false
+        for (index in cells.indices) {
+            cells[index] = false
+        }
     }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             IconButton(
                 onClick = onClose,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 0.dp, end = 0.dp)
+                modifier = Modifier.align(Alignment.TopEnd)
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
@@ -103,12 +100,7 @@ fun PlaceDetailsBottomSheet(
                     .fillMaxWidth()
                     .padding(top = 34.dp)
             ) {
-                TabRow(
-                    selectedTabIndex = selectedTabIndex,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 0.dp)
-                ) {
+                TabRow(selectedTabIndex = selectedTabIndex) {
                     Tab(
                         selected = selectedTabIndex == 0,
                         onClick = { selectedTabIndex = 0 },
@@ -150,7 +142,8 @@ fun PlaceDetailsBottomSheet(
                     if (place.type == PlaceType.CAFE) {
                         val itemsText = place.menuItems
                             .filter { it.isNotBlank() }
-                            .joinToString(", ")
+                            .joinToString(", ") { it.prettyMenuItem() }
+
                         if (itemsText.isNotBlank()) {
                             Text(
                                 text = "Есть в меню: $itemsText",
@@ -158,15 +151,14 @@ fun PlaceDetailsBottomSheet(
                             )
                         }
                     }
-
                 }
             }
 
             1 -> {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (placeReviewsViewModel.uiState.error != null) {
+                    reviewsState.error?.let { message ->
                         Text(
-                            text = placeReviewsViewModel.uiState.error ?: "",
+                            text = message,
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -178,9 +170,9 @@ fun PlaceDetailsBottomSheet(
                             style = MaterialTheme.typography.bodyMedium
                         )
                     } else {
-                        val avg = reviewsState.reviews.map { it.rating }.average()
+                        val average = reviewsState.reviews.map { it.rating }.average()
                         Text(
-                            text = "Средняя оценка: %.2f / 9".format(avg),
+                            text = "Средняя оценка: %.2f / 9".format(average),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -191,7 +183,7 @@ fun PlaceDetailsBottomSheet(
 
                     if (place.type != PlaceType.CAFE) {
                         Text(
-                            text = "Оставлять отзывы можно только для кафе/магазинов.",
+                            text = "Отзывы доступны только для заведений общественного питания.",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     } else {
@@ -206,10 +198,9 @@ fun PlaceDetailsBottomSheet(
                                 Text("Оставить отзыв")
                             }
                         } else {
-                            // Форма отзыва
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    text = "Оценка (рисунок цифры 0..9 на 5x5):",
+                                    text = "Нарисуйте оценку от 0 до 9 на сетке 5x5:",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
 
@@ -239,16 +230,17 @@ fun PlaceDetailsBottomSheet(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    TextButton(onClick = {
-                                        resetForm()
-                                    }) {
+                                    TextButton(onClick = { resetForm() }) {
                                         Text("Очистить")
                                     }
 
                                     TextButton(
                                         onClick = {
                                             formError = null
-                                            rating = DigitRecognizer.recognizeDigit(cells.toList(), gridSize = gridSize)
+                                            rating = DigitRecognizer.recognizeDigit(
+                                                cells = cells.toList(),
+                                                gridSize = gridSize
+                                            )
                                             if (rating == null) {
                                                 formError = "Не удалось распознать цифру. Попробуйте ещё раз."
                                             }
@@ -267,20 +259,18 @@ fun PlaceDetailsBottomSheet(
                                     value = reviewText,
                                     onValueChange = { reviewText = it },
                                     modifier = Modifier.fillMaxWidth(),
-                                    label = { Text("Описание отзыва") },
+                                    label = { Text("Текст отзыва") },
                                     minLines = 2,
                                     maxLines = 4
                                 )
 
-                                formError?.let { err ->
+                                formError?.let { error ->
                                     Text(
-                                        text = err,
+                                        text = error,
                                         color = MaterialTheme.colorScheme.error,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
-
-                                Spacer(modifier = Modifier.height(4.dp))
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -295,21 +285,25 @@ fun PlaceDetailsBottomSheet(
                                     ) {
                                         Text("Отмена")
                                     }
+
                                     TextButton(
                                         onClick = {
                                             formError = null
-                                            val r = rating
-                                            if (r == null) {
-                                                formError = "Сначала распознайте рейтинг (0..9)."
+                                            val currentRating = rating
+
+                                            if (currentRating == null) {
+                                                formError = "Сначала распознайте оценку."
                                                 return@TextButton
                                             }
+
                                             if (reviewText.isBlank()) {
-                                                formError = "Введите описание отзыва."
+                                                formError = "Введите текст отзыва."
                                                 return@TextButton
                                             }
+
                                             placeReviewsViewModel.addReview(
                                                 placeId = place.id,
-                                                rating = r,
+                                                rating = currentRating,
                                                 description = reviewText
                                             )
                                             isAddingReview = false
@@ -331,10 +325,11 @@ fun PlaceDetailsBottomSheet(
 
 @Composable
 private fun ReviewCard(review: StoreReview) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Text(
                 text = "Оценка: ${review.rating} / 9",
                 style = MaterialTheme.typography.bodyMedium
@@ -364,3 +359,13 @@ private fun PixelCell(
     )
 }
 
+private fun String.prettyMenuItem(): String {
+    return when (this) {
+        "coffee" -> "кофе"
+        "pancakes" -> "блины"
+        "full_meal" -> "полный обед"
+        "snack" -> "перекус"
+        "disposable_tableware" -> "одноразовая посуда"
+        else -> replace('_', ' ')
+    }
+}

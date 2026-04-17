@@ -1,56 +1,54 @@
 package ru.tsu.mobileprojectmap.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+import androidx.compose.ui.graphics.Color
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = TsuBlue,
+    onPrimary = TsuWhite,
+    primaryContainer = Color(0xFFDDEEFF),
+    onPrimaryContainer = TsuNavy,
+    secondary = TsuSky,
+    onSecondary = TsuNavy,
+    secondaryContainer = Color(0xFFE8F4FF),
+    onSecondaryContainer = TsuNavy,
+    tertiary = Color(0xFF4B96DB),
+    onTertiary = TsuWhite,
+    background = TsuIce,
+    onBackground = TsuInk,
+    surface = TsuWhite,
+    onSurface = TsuInk,
+    surfaceVariant = Color(0xFFD8E8F8),
+    onSurfaceVariant = TsuInk,
+    outline = TsuMist
+)
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private val DarkColorScheme = darkColorScheme(
+    primary = Color(0xFF8EC7FF),
+    onPrimary = TsuNavy,
+    primaryContainer = Color(0xFF1A4674),
+    onPrimaryContainer = Color(0xFFDDEEFF),
+    secondary = Color(0xFFAED7FF),
+    onSecondary = TsuNavy,
+    background = Color(0xFF0E1E2E),
+    onBackground = Color(0xFFE8F4FF),
+    surface = Color(0xFF13273A),
+    onSurface = Color(0xFFE8F4FF),
+    surfaceVariant = Color(0xFF243B52),
+    onSurfaceVariant = Color(0xFFD8E8F8),
+    outline = Color(0xFF6F8BA8)
 )
 
 @Composable
 fun MobileProjectMapTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
         typography = Typography,
         content = content
     )

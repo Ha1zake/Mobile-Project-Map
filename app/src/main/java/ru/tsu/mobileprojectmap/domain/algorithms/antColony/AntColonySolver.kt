@@ -85,6 +85,11 @@ class AntColonySolver {
             current = next
         }
 
+        if (size > 1 && distances[current][startIndex] > 0.0) {
+            routeLength += distances[current][startIndex]
+            visited.add(startIndex)
+        }
+
         return Ant(visited, current, routeLength)
     }
 

@@ -1,7 +1,6 @@
 package ru.tsu.mobileprojectmap.ui.screens.map
 
 import android.app.Application
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import androidx.compose.runtime.getValue
@@ -11,72 +10,79 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ru.tsu.mobileprojectmap.R
-import ru.tsu.mobileprojectmap.domain.algorithms.astar.AStarPathfinder
 import ru.tsu.mobileprojectmap.domain.algorithms.antColony.AntColonySolver
+import ru.tsu.mobileprojectmap.domain.algorithms.astar.AStarPathfinder
 import ru.tsu.mobileprojectmap.domain.algorithms.genetic.GeneticAlgorithm
 import ru.tsu.mobileprojectmap.domain.algorithms.genetic.MealRequest
+import ru.tsu.mobileprojectmap.domain.model.FoodCategory
 import ru.tsu.mobileprojectmap.domain.model.GridCell
 import ru.tsu.mobileprojectmap.domain.model.Landmark
 import ru.tsu.mobileprojectmap.domain.model.MenuItem
+import ru.tsu.mobileprojectmap.domain.model.Place
 import ru.tsu.mobileprojectmap.domain.model.Point
 import ru.tsu.mobileprojectmap.domain.model.SamplePlaces
-import ru.tsu.mobileprojectmap.domain.model.FoodCategory
-import ru.tsu.mobileprojectmap.domain.model.Place
-import ru.tsu.mobileprojectmap.domain.model.PlaceType
 import ru.tsu.mobileprojectmap.domain.usecase.FindPathUseCase
 import ru.tsu.mobileprojectmap.ui.screens.map.model.CellType
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapCell
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
-import java.time.LocalTime
-import kotlin.math.hypot
+import java.util.Calendar
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     var uiState by mutableStateOf(MapUIState())
         private set
 
-    private val findPathUseCase = FindPathUseCase(AStarPathfinder())
+    private val pathFinder = AStarPathfinder()
+    private val findPathUseCase = FindPathUseCase(pathFinder)
     private val geneticAlgorithm = GeneticAlgorithm()
     private val antColonySolver = AntColonySolver()
     private var pathJob: Job? = null
+    private var statusResetJob: Job? = null
     private var baseGrid: List<List<MapCell>> = emptyList()
 
     init {
         loadGrid()
     }
 
-    private fun loadGrid() {
-        viewModelScope.launch(Dispatchers.Default) {
-            uiState = uiState.copy(
-                isMapLoading = true,
-                statusMessage = "Подготавливаем карту..."
-            )
-            val grid = createGridFast(uiState.rows, uiState.cols)
-            baseGrid = grid
-            uiState = uiState.copy(
-                cells = cloneGrid(baseGrid),
-                isMapLoading = false,
-                statusMessage = "Карта готова. Выберите режим в меню."
-            )
-        }
-    }
-
     fun setMode(mode: MapEditMode) {
+        cancelStatusReset()
+        pathJob?.cancel()
         uiState = uiState.copy(
             currentMode = mode,
-            statusMessage = when (mode) {
-                MapEditMode.VIEW -> "Режим: просмотр карты"
-                MapEditMode.SET_START -> "Режим: установка старта"
-                MapEditMode.SET_FINISH -> "Режим: установка финиша"
-                MapEditMode.SET_OBSTACLE -> "Режим: рисование препятствий"
-            }
+            visitedCells = emptyList(),
+            currentCell = null,
+            isRunning = false,
+            statusMessage = defaultStatusMessage(mode)
         )
     }
 
+    fun setMealCategorySelected(category: FoodCategory, selected: Boolean) {
+        cancelStatusReset()
+        val updatedCategories = uiState.selectedMealCategories.toMutableSet().apply {
+            if (selected) add(category) else remove(category)
+        }
+
+        uiState = uiState.copy(
+            selectedMealCategories = updatedCategories,
+            geneticSummary = null,
+            statusMessage = if (updatedCategories.isEmpty()) {
+                "Выберите хотя бы один товар."
+            } else {
+                "Список товаров обновлён."
+            }
+        )
+        scheduleStatusReset()
+    }
+
     fun resetMap() {
+        cancelStatusReset()
         pathJob?.cancel()
         uiState = uiState.copy(
             cells = cloneGrid(baseGrid),
@@ -86,15 +92,19 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             visitedCells = emptyList(),
             currentCell = null,
             isRunning = false,
-            statusMessage = "Карта сброшена",
+            currentMode = MapEditMode.VIEW,
+            statusMessage = "Карта сброшена.",
             pathFound = null,
             geneticSummary = null,
             antSummary = null
         )
+        scheduleStatusReset()
     }
 
     fun onCellClick(row: Int, col: Int) {
-        if (uiState.isMapLoading) return
+        if (uiState.isMapLoading || uiState.cells.isEmpty()) return
+        cancelStatusReset()
+
         when (uiState.currentMode) {
             MapEditMode.VIEW -> Unit
             MapEditMode.SET_START -> setStartCell(row, col)
@@ -104,17 +114,11 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun drawObstacleCell(row: Int, col: Int) {
-        if (uiState.isMapLoading) return
-        if (uiState.currentMode != MapEditMode.SET_OBSTACLE) return
+        if (uiState.isMapLoading || uiState.currentMode != MapEditMode.SET_OBSTACLE) return
 
         val selectedCell = uiState.cells[row][col]
-        if (selectedCell.type == CellType.START || selectedCell.type == CellType.FINISH) {
-            return
-        }
-
-        if (selectedCell.type == CellType.OBSTACLE || selectedCell.baseType != CellType.EMPTY) {
-            return
-        }
+        if (selectedCell.type == CellType.START || selectedCell.type == CellType.FINISH) return
+        if (selectedCell.type == CellType.OBSTACLE || selectedCell.baseType != CellType.EMPTY) return
 
         val updatedCells = uiState.cells.map { rowList ->
             rowList.map { cell ->
@@ -131,19 +135,250 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             path = emptyList(),
             visitedCells = emptyList(),
             currentCell = null,
-            isRunning = false,
-            statusMessage = "Препятствия обновлены",
             pathFound = null,
             geneticSummary = null,
-            antSummary = null
+            antSummary = null,
+            statusMessage = "Ограждения обновлены."
         )
+        scheduleStatusReset()
+    }
+
+    fun findPath() {
+        if (uiState.isMapLoading) return
+
+        val start = uiState.startCell
+        val finish = uiState.finishCell
+
+        if (start == null || finish == null) {
+            uiState = uiState.copy(
+                path = emptyList(),
+                visitedCells = emptyList(),
+                currentCell = null,
+                isRunning = false,
+                statusMessage = "Сначала выберите старт и финиш.",
+                pathFound = null
+            )
+            scheduleStatusReset()
+            return
+        }
+
+        cancelStatusReset()
+        val grid = currentGrid()
+        pathJob?.cancel()
+
+        pathJob = viewModelScope.launch {
+            withContext(Dispatchers.Main) {
+                uiState = uiState.copy(
+                    path = emptyList(),
+                    visitedCells = emptyList(),
+                    currentCell = null,
+                    isRunning = true,
+                    statusMessage = "A* ищет маршрут...",
+                    pathFound = null,
+                    geneticSummary = null,
+                    antSummary = null
+                )
+            }
+
+            findPathUseCase.executeWithSteps(
+                grid = grid,
+                start = Point(start.col, start.row),
+                end = Point(finish.col, finish.row)
+            ).collectLatest { step ->
+                withContext(Dispatchers.Main) {
+                    val finalPath = if (step.isFinished) step.path else emptyList()
+                    uiState = uiState.copy(
+                        visitedCells = if (step.isFinished) emptyList() else step.closedSet,
+                        currentCell = if (step.isFinished) null else step.current,
+                        path = finalPath,
+                        isRunning = !step.isFinished,
+                        statusMessage = if (step.isFinished) {
+                            if (finalPath.isNotEmpty()) "Маршрут построен." else "Маршрут не найден."
+                        } else {
+                            "A* проверяет клетки..."
+                        },
+                        pathFound = if (step.isFinished) finalPath.isNotEmpty() else null
+                    )
+
+                    if (step.isFinished) {
+                        scheduleStatusReset()
+                    }
+                }
+            }
+        }
+    }
+
+    fun runGeneticMealRoute() {
+        if (uiState.selectedMealCategories.isEmpty()) {
+            uiState = uiState.copy(
+                path = emptyList(),
+                geneticSummary = "Выберите хотя бы один товар.",
+                statusMessage = "Генетический алгоритм не запущен."
+            )
+            scheduleStatusReset()
+            return
+        }
+
+        cancelStatusReset()
+        viewModelScope.launch(Dispatchers.Default) {
+            withContext(Dispatchers.Main) {
+                uiState = uiState.copy(
+                    path = emptyList(),
+                    visitedCells = emptyList(),
+                    currentCell = null,
+                    isRunning = true,
+                    geneticSummary = null,
+                    antSummary = null,
+                    statusMessage = "Подбираем маршрут для сбора еды..."
+                )
+            }
+
+            val cafes = SamplePlaces.cafes
+            val grid = currentGrid()
+            val menuItems = buildMenuItems(cafes)
+            val startPoint = getRouteStartPoint()
+            val distances = buildAStarDistanceMatrix(cafes.map { it.point }, grid)
+            val startDistances = buildAStarDistanceVector(startPoint, cafes.map { it.point }, grid)
+            val request = MealRequest(
+                requiredCategories = uiState.selectedMealCategories,
+                maxBudget = 900.0,
+                currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            )
+
+            val result = geneticAlgorithm.solve(
+                places = cafes,
+                menuItems = menuItems,
+                distances = distances,
+                request = request,
+                startDistances = startDistances
+            )
+
+            val routePlaces = result.bestRoute.mapNotNull { index -> cafes.getOrNull(index) }
+            val routeStops = listOf(startPoint) + routePlaces.map { it.point }
+            val fullRoute = buildAStarPathForStops(routeStops, grid)
+            val selectedGoods = request.requiredCategories.joinToString { it.displayName() }
+
+            withContext(Dispatchers.Main) {
+                uiState = uiState.copy(
+                    path = fullRoute,
+                    visitedCells = emptyList(),
+                    currentCell = null,
+                    isRunning = false,
+                    currentMode = MapEditMode.VIEW,
+                    geneticSummary = when {
+                        routePlaces.isEmpty() -> "Не удалось подобрать заведения под выбранные товары."
+                        fullRoute.isEmpty() -> "Точки найдены, но связать их маршрутом A* не получилось."
+                        result.isValid -> "Маршрут: ${routePlaces.joinToString(" -> ") { it.name }}. Товары: $selectedGoods. Бюджет: ${result.totalPrice.toInt()} ₽."
+                        else -> "Лучший найденный маршрут: ${routePlaces.joinToString(" -> ") { it.name }}. Товары: $selectedGoods."
+                    },
+                    statusMessage = if (fullRoute.isNotEmpty()) {
+                        "Маршрут для сбора еды готов."
+                    } else {
+                        "Не удалось построить полный маршрут."
+                    }
+                )
+                scheduleStatusReset()
+            }
+        }
+    }
+
+    fun runAntLandmarksRoute(selectedLandmarkIds: Set<String> = emptySet()) {
+        cancelStatusReset()
+        viewModelScope.launch(Dispatchers.Default) {
+            withContext(Dispatchers.Main) {
+                uiState = uiState.copy(
+                    path = emptyList(),
+                    visitedCells = emptyList(),
+                    currentCell = null,
+                    isRunning = true,
+                    antSummary = null,
+                    geneticSummary = null,
+                    statusMessage = "Строим экскурсионный маршрут..."
+                )
+            }
+
+            val landmarks = SamplePlaces.landmarks
+                .filter { selectedLandmarkIds.isEmpty() || it.id in selectedLandmarkIds }
+                .map { Landmark(it.id, it.name, it.point, it.description) }
+
+            if (landmarks.size < 2) {
+                withContext(Dispatchers.Main) {
+                    uiState = uiState.copy(
+                        isRunning = false,
+                        antSummary = "Выберите минимум две достопримечательности.",
+                        statusMessage = "Недостаточно точек для построения."
+                    )
+                    scheduleStatusReset()
+                }
+                return@launch
+            }
+
+            val grid = currentGrid()
+            val startPoint = getRouteStartPoint()
+            val startLandmark = landmarks.minByOrNull { landmark ->
+                aStarDistance(startPoint, landmark.point, grid)
+            } ?: landmarks.first()
+
+            val distances = buildAStarDistanceMatrix(landmarks.map { it.point }, grid)
+            val route = antColonySolver.solve(landmarks, distances, startLandmark)
+            val displayStops = buildList {
+                add(startPoint)
+                addAll(route.map { it.point })
+            }
+            val fullRoute = buildAStarPathForStops(displayStops, grid)
+
+            withContext(Dispatchers.Main) {
+                uiState = uiState.copy(
+                    path = fullRoute,
+                    visitedCells = emptyList(),
+                    currentCell = null,
+                    isRunning = false,
+                    currentMode = MapEditMode.VIEW,
+                    antSummary = when {
+                        route.isEmpty() -> "Маршрут не найден."
+                        fullRoute.isEmpty() -> "Точки найдены, но A* между ними маршрут не построил."
+                        else -> "Маршрут: ${route.joinToString(" -> ") { it.name }}."
+                    },
+                    statusMessage = if (fullRoute.isNotEmpty()) {
+                        "Маршрут по достопримечательностям готов."
+                    } else {
+                        "Не удалось построить экскурсионный маршрут."
+                    }
+                )
+                scheduleStatusReset()
+            }
+        }
+    }
+
+    private fun loadGrid() {
+        viewModelScope.launch(Dispatchers.Default) {
+            withContext(Dispatchers.Main) {
+                uiState = uiState.copy(
+                    isMapLoading = true,
+                    statusMessage = "Подготавливаем карту..."
+                )
+            }
+
+            val cached = cachedBaseGrid
+            val grid = cached ?: createGridFast(uiState.rows, uiState.cols).also {
+                cachedBaseGrid = it
+            }
+            baseGrid = grid
+
+            withContext(Dispatchers.Main) {
+                uiState = uiState.copy(
+                    cells = cloneGrid(baseGrid),
+                    isMapLoading = false,
+                    statusMessage = "Карта готова."
+                )
+                scheduleStatusReset()
+            }
+        }
     }
 
     private fun setStartCell(row: Int, col: Int) {
         val targetCell = findNearestWalkableCell(row, col) ?: return
-        var updatedCells = clearPreviousStart(uiState.cells)
-
-        updatedCells = updatedCells.map { rowList ->
+        val updatedCells = clearPreviousStart(uiState.cells).map { rowList ->
             rowList.map { cell ->
                 if (cell.row == targetCell.row && cell.col == targetCell.col) {
                     cell.copy(type = CellType.START)
@@ -160,18 +395,17 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             visitedCells = emptyList(),
             currentCell = null,
             isRunning = false,
-            statusMessage = "Старт установлен",
             pathFound = null,
             geneticSummary = null,
-            antSummary = null
+            antSummary = null,
+            statusMessage = "Старт установлен."
         )
+        scheduleStatusReset()
     }
 
     private fun setFinishCell(row: Int, col: Int) {
         val targetCell = findNearestWalkableCell(row, col) ?: return
-        var updatedCells = clearPreviousFinish(uiState.cells)
-
-        updatedCells = updatedCells.map { rowList ->
+        val updatedCells = clearPreviousFinish(uiState.cells).map { rowList ->
             rowList.map { cell ->
                 if (cell.row == targetCell.row && cell.col == targetCell.col) {
                     cell.copy(type = CellType.FINISH)
@@ -188,18 +422,17 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             visitedCells = emptyList(),
             currentCell = null,
             isRunning = false,
-            statusMessage = "Финиш установлен",
             pathFound = null,
             geneticSummary = null,
-            antSummary = null
+            antSummary = null,
+            statusMessage = "Финиш установлен."
         )
+        scheduleStatusReset()
     }
 
     private fun toggleObstacleCell(row: Int, col: Int) {
         val selectedCell = uiState.cells[row][col]
-        if (selectedCell.type == CellType.START || selectedCell.type == CellType.FINISH) {
-            return
-        }
+        if (selectedCell.type == CellType.START || selectedCell.type == CellType.FINISH) return
 
         val updatedCells = uiState.cells.map { rowList ->
             rowList.map { cell ->
@@ -227,187 +460,221 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             visitedCells = emptyList(),
             currentCell = null,
             isRunning = false,
-            statusMessage = "Препятствия обновлены",
             pathFound = null,
             geneticSummary = null,
-            antSummary = null
+            antSummary = null,
+            statusMessage = "Ограждения обновлены."
         )
+        scheduleStatusReset()
     }
 
-    fun findPath() {
-        if (uiState.isMapLoading) return
-        val start = uiState.startCell
-        val finish = uiState.finishCell
+    private fun createGridFast(rows: Int, cols: Int): List<List<MapCell>> {
+        val bitmap = BitmapFactory.decodeResource(
+            getApplication<Application>().resources,
+            R.drawable.campus_map2,
+            BitmapFactory.Options().apply {
+                inPreferredConfig = BitmapFactory.Options().inPreferredConfig
+                inScaled = false
+            }
+        )
 
-        if (start == null || finish == null) {
-            uiState = uiState.copy(
-                path = emptyList(),
-                visitedCells = emptyList(),
-                currentCell = null,
-                isRunning = false,
-                statusMessage = "Сначала укажите старт и финиш",
-                pathFound = null,
-                geneticSummary = null,
-                antSummary = null
-            )
-            return
+        val sourceWidth = bitmap.width
+        val sourceHeight = bitmap.height
+        val walkable = Array(rows) { BooleanArray(cols) }
+
+        for (row in 0 until rows) {
+            val centerY = ((row + 0.5f) * sourceHeight / rows).roundToInt()
+            for (col in 0 until cols) {
+                val centerX = ((col + 0.5f) * sourceWidth / cols).roundToInt()
+                var isRoad = false
+
+                for (offsetY in -4..4) {
+                    if (isRoad) break
+                    for (offsetX in -4..4) {
+                        val sampleX = centerX + offsetX
+                        val sampleY = centerY + offsetY
+                        if (sampleX !in 0 until sourceWidth || sampleY !in 0 until sourceHeight) {
+                            continue
+                        }
+                        if (isWalkablePixel(bitmap.getPixel(sampleX, sampleY))) {
+                            isRoad = true
+                            break
+                        }
+                    }
+                }
+
+                walkable[row][col] = isRoad
+            }
         }
 
-        val grid = uiState.cells.flatten().map { cell ->
+        bitmap.recycle()
+        val expandedWalkable = expandRoads(walkable)
+
+        return List(rows) { row ->
+            List(cols) { col ->
+                val type = if (expandedWalkable[row][col]) CellType.EMPTY else CellType.OBSTACLE
+                MapCell(row = row, col = col, type = type, baseType = type)
+            }
+        }
+    }
+
+    private fun isWalkablePixel(pixel: Int): Boolean {
+        val red = Color.red(pixel)
+        val green = Color.green(pixel)
+        val blue = Color.blue(pixel)
+        return red > 150 && blue > 150 && green < 190 && abs(red - blue) < 100
+    }
+
+    private fun expandRoads(source: Array<BooleanArray>): Array<BooleanArray> {
+        val rows = source.size
+        val cols = source.firstOrNull()?.size ?: 0
+        val result = Array(rows) { BooleanArray(cols) }
+
+        for (row in 0 until rows) {
+            for (col in 0 until cols) {
+                if (!source[row][col]) continue
+                result[row][col] = true
+
+                val neighbours = listOf(
+                    row - 1 to col,
+                    row + 1 to col,
+                    row to col - 1,
+                    row to col + 1
+                )
+
+                neighbours.forEach { (newRow, newCol) ->
+                    if (newRow in 0 until rows && newCol in 0 until cols) {
+                        result[newRow][newCol] = true
+                    }
+                }
+            }
+        }
+
+        return result
+    }
+
+    private fun currentGrid(): List<GridCell> {
+        return uiState.cells.flatten().map { cell ->
             GridCell(
-                point = Point(x = cell.col, y = cell.row),
+                point = Point(cell.col, cell.row),
                 isWalkable = cell.type != CellType.OBSTACLE
             )
         }
+    }
 
-        pathJob?.cancel()
+    private fun getRouteStartPoint(): Point {
+        return uiState.startCell?.let { Point(it.col, it.row) } ?: Point(78, 72)
+    }
 
-        pathJob = viewModelScope.launch(Dispatchers.Default) {
-            uiState = uiState.copy(
-                path = emptyList(),
-                visitedCells = emptyList(),
-                currentCell = null,
-                isRunning = true,
-                statusMessage = "A* ищет маршрут...",
-                pathFound = null,
-                geneticSummary = null,
-                antSummary = null
-            )
+    private fun buildMenuItems(cafes: List<Place>): List<MenuItem> {
+        val priceByCategory = mapOf(
+            FoodCategory.COFFEE to 180.0,
+            FoodCategory.PANCAKES to 220.0,
+            FoodCategory.FULL_MEAL to 360.0,
+            FoodCategory.SNACK to 140.0,
+            FoodCategory.DISPOSABLE_TABLEWARE to 60.0
+        )
 
-            findPathUseCase.executeWithSteps(
-                grid = grid,
-                start = Point(x = start.col, y = start.row),
-                end = Point(x = finish.col, y = finish.row)
-            ).collectLatest { step ->
-                uiState = uiState.copy(
-                    visitedCells = step.closedSet,
-                    currentCell = step.current,
-                    path = if (step.isFinished) step.path else emptyList(),
-                    isRunning = !step.isFinished,
-                    statusMessage = if (step.isFinished) {
-                        if (step.path.isNotEmpty()) {
-                            "Маршрут найден. Длина: ${step.path.size} клеток"
-                        } else {
-                            "Маршрут не найден"
-                        }
-                    } else {
-                        "A* анализирует клетку (${step.current.x}, ${step.current.y})"
-                    },
-                    pathFound = if (step.isFinished) step.path.isNotEmpty() else null
+        return cafes.flatMap { place ->
+            place.menuItems.mapNotNull { rawItem ->
+                val category = rawItem.toFoodCategory() ?: return@mapNotNull null
+                MenuItem(
+                    id = "${place.id}_$rawItem",
+                    name = rawItem.replace('_', ' '),
+                    category = category,
+                    placeId = place.id,
+                    price = priceByCategory.getValue(category)
                 )
             }
         }
     }
 
-    fun runGeneticMealRoute() {
-
-        viewModelScope.launch(Dispatchers.Default) {
-            uiState = uiState.copy(
-                path = emptyList(),
-                geneticSummary = null,
-                statusMessage = "Генетический алгоритм запущен..."
-            )
-
-            val cafes = SamplePlaces.places.filter { it.type == PlaceType.CAFE }
-            println("CAFES SIZE = ${cafes.size}")
-            if (cafes.size < 2) {
-                uiState = uiState.copy(statusMessage = "Недостаточно точек для генетического алгоритма")
-                return@launch
-            }
-            val menuItems = buildMenuItems()
-            val distances = buildDistanceMatrix(cafes)
-            val startDistances = distances.first()
-            val request = MealRequest(
-                requiredCategories = setOf(
-                    FoodCategory.COFFEE,
-                    FoodCategory.PANCAKES,
-                    FoodCategory.DISPOSABLE_TABLEWARE
-                ),
-                maxBudget = 900.0,
-                currentHour = LocalTime.now().hour
-            )
-            val result = geneticAlgorithm.solve(cafes, menuItems, distances, request, startDistances)
-            val routeNames = result.bestRoute.mapNotNull { index -> cafes.getOrNull(index)?.name }
-            val routePoints = result.bestRoute.mapNotNull { index ->
-                cafes.getOrNull(index)?.point
-            }
-
-            uiState = uiState.copy(
-                path = routePoints,
-                geneticSummary = if (routeNames.isNotEmpty()) {
-                    "Маршрут: ${routeNames.joinToString(" -> ")} | Бюджет: %.0f | Покрытие: %d/%d".format(
-                        result.totalPrice,
-                        result.coveredCategories.size,
-                        request.requiredCategories.size
-                    )
-                } else {
-                    "Подходящий маршрут не найден"
-                },
-                statusMessage = "Генетический алгоритм завершен"
-            )
+    private fun String.toFoodCategory(): FoodCategory? {
+        return when (this) {
+            "coffee" -> FoodCategory.COFFEE
+            "pancakes" -> FoodCategory.PANCAKES
+            "full_meal" -> FoodCategory.FULL_MEAL
+            "snack" -> FoodCategory.SNACK
+            "disposable_tableware" -> FoodCategory.DISPOSABLE_TABLEWARE
+            else -> null
         }
     }
 
-    fun runAntLandmarksRoute() {
-        viewModelScope.launch(Dispatchers.Default) {
-            uiState = uiState.copy(
-                path = emptyList(),
-                antSummary = null,
-                statusMessage = "Муравьиный алгоритм запущен..."
-            )
+    private fun buildAStarDistanceMatrix(
+        points: List<Point>,
+        grid: List<GridCell>
+    ): List<List<Double>> {
+        val matrix = MutableList(points.size) { MutableList(points.size) { 0.0 } }
 
-            val landmarks = SamplePlaces.places
-                .filter { it.type == PlaceType.LANDMARK }
-                .map { Landmark(it.id, it.name, it.point, it.description) }
-            if (landmarks.isEmpty()) {
-                uiState = uiState.copy(statusMessage = "Нет достопримечательностей для обхода")
-                return@launch
-            }
-            val distances = buildDistanceMatrixForLandmarks(landmarks)
-            val route = antColonySolver.solve(landmarks, distances, landmarks.first())
-            val length = calculateLandmarksLength(route)
-            val routePoints = route.map { it.point }
-
-            uiState = uiState.copy(
-                path = routePoints,
-                antSummary = if (route.isNotEmpty()) {
-                    "Маршрут: ${route.joinToString(" -> ") { it.name }} | Длина: %.1f".format(length)
+        for (row in points.indices) {
+            for (col in row until points.size) {
+                val distance = if (row == col) {
+                    0.0
                 } else {
-                    "Маршрут не найден"
-                },
-                statusMessage = "Муравьиный алгоритм завершен"
-            )
+                    aStarDistance(points[row], points[col], grid)
+                }
+                matrix[row][col] = distance
+                matrix[col][row] = distance
+            }
+        }
+
+        return matrix
+    }
+
+    private fun buildAStarDistanceVector(
+        start: Point,
+        points: List<Point>,
+        grid: List<GridCell>
+    ): List<Double> {
+        return points.map { point ->
+            aStarDistance(start, point, grid)
         }
     }
 
-    private fun createGridFast(rows: Int, cols: Int): List<List<MapCell>> {
-        val options = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
-        val bitmap = BitmapFactory.decodeResource(
-            getApplication<Application>().resources,
-            R.drawable.campus_map2,
-            options
+    private fun aStarDistance(
+        from: Point,
+        to: Point,
+        grid: List<GridCell>
+    ): Double {
+        val path = buildAStarPathSegment(from, to, grid)
+        return if (path.isEmpty()) 100_000.0 else path.size.toDouble()
+    }
+
+    private fun buildAStarPathForStops(
+        stops: List<Point>,
+        grid: List<GridCell>
+    ): List<Point> {
+        if (stops.isEmpty()) return emptyList()
+        if (stops.size == 1) return listOf(stops.first())
+
+        val fullPath = mutableListOf<Point>()
+        for (index in 0 until stops.lastIndex) {
+            val segment = buildAStarPathSegment(stops[index], stops[index + 1], grid)
+            if (segment.isEmpty()) return emptyList()
+
+            if (fullPath.isEmpty()) {
+                fullPath.addAll(segment)
+            } else {
+                fullPath.addAll(segment.drop(1))
+            }
+        }
+        return fullPath
+    }
+
+    private fun buildAStarPathSegment(
+        from: Point,
+        to: Point,
+        grid: List<GridCell>
+    ): List<Point> {
+        val start = findNearestWalkableCell(from.y, from.x)?.let { Point(it.col, it.row) } ?: return emptyList()
+        val finish = findNearestWalkableCell(to.y, to.x)?.let { Point(it.col, it.row) } ?: return emptyList()
+        if (start == finish) return listOf(start)
+
+        return findPathUseCase.execute(
+            grid = grid,
+            start = start,
+            end = finish
         )
-        val width = bitmap.width
-        val height = bitmap.height
-        val pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-        bitmap.recycle()
-
-        fun pixelAt(x: Int, y: Int): Int = pixels[y * width + x]
-
-        return List(rows) { row ->
-            List(cols) { col ->
-                val sampleX = ((col + 0.5f) * width / cols).toInt().coerceIn(0, width - 1)
-                val sampleY = ((row + 0.5f) * height / rows).toInt().coerceIn(0, height - 1)
-                val pixel = pixelAt(sampleX, sampleY)
-                val r = Color.red(pixel)
-                val g = Color.green(pixel)
-                val b = Color.blue(pixel)
-                val isPurple = r > 120 && b > 120 && g < 140 && kotlin.math.abs(r - b) < 80
-                val type = if (isPurple) CellType.EMPTY else CellType.OBSTACLE
-                MapCell(row = row, col = col, type = type, baseType = type)
-            }
-        }
     }
 
     private fun findNearestWalkableCell(row: Int, col: Int): MapCell? {
@@ -438,20 +705,18 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         while (queue.isNotEmpty()) {
             val (currentRow, currentCol) = queue.removeFirst()
 
-            for ((dr, dc) in directions) {
-                val newRow = currentRow + dr
-                val newCol = currentCol + dc
+            for ((offsetRow, offsetCol) in directions) {
+                val newRow = currentRow + offsetRow
+                val newCol = currentCol + offsetCol
 
                 if (newRow in 0 until rows && newCol in 0 until cols) {
                     val key = newRow to newCol
                     if (key !in visited) {
                         visited.add(key)
-
                         val cell = uiState.cells[newRow][newCol]
                         if (cell.type != CellType.OBSTACLE) {
                             return cell
                         }
-
                         queue.add(key)
                     }
                 }
@@ -463,7 +728,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun clearPreviousStart(cells: List<List<MapCell>>): List<List<MapCell>> {
         val oldStart = uiState.startCell ?: return cells
-
         return cells.map { rowList ->
             rowList.map { cell ->
                 if (cell.row == oldStart.row && cell.col == oldStart.col) {
@@ -477,7 +741,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun clearPreviousFinish(cells: List<List<MapCell>>): List<List<MapCell>> {
         val oldFinish = uiState.finishCell ?: return cells
-
         return cells.map { rowList ->
             rowList.map { cell ->
                 if (cell.row == oldFinish.row && cell.col == oldFinish.col) {
@@ -493,44 +756,41 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         return source.map { row -> row.map { it.copy() } }
     }
 
-    private fun buildMenuItems(): List<MenuItem> {
-        return listOf(
-            MenuItem("coffee_starbooks", "Кофе латте", FoodCategory.COFFEE, "starbooks", 220.0),
-            MenuItem("pancake_siberian", "Блин с мясом", FoodCategory.PANCAKES, "siberian_pancakes", 180.0),
-            MenuItem("meal_cafe", "Комплексный обед", FoodCategory.FULL_MEAL, "main_cafeteria", 350.0),
-            MenuItem("snack_yarche", "Перекус", FoodCategory.SNACK, "yarche", 130.0),
-            MenuItem("tableware_yarche", "Одноразовая посуда", FoodCategory.DISPOSABLE_TABLEWARE, "yarche", 60.0)
-        )
+    private fun defaultStatusMessage(mode: MapEditMode = uiState.currentMode): String {
+        return when (mode) {
+            MapEditMode.VIEW -> "Карта готова к работе."
+            MapEditMode.SET_START -> "Нажмите на карту, чтобы поставить старт."
+            MapEditMode.SET_FINISH -> "Нажмите на карту, чтобы поставить финиш."
+            MapEditMode.SET_OBSTACLE -> "Проведите по карте, чтобы добавить ограждения."
+        }
     }
 
-    private fun buildDistanceMatrix(places: List<Place>): List<List<Double>> {
-        return places.map { from ->
-            places.map { to ->
-                val dx = (from.point.x - to.point.x).toDouble()
-                val dy = (from.point.y - to.point.y).toDouble()
-                hypot(dx, dy)
+    private fun cancelStatusReset() {
+        statusResetJob?.cancel()
+        statusResetJob = null
+    }
+
+    private fun scheduleStatusReset(delayMs: Long = 2600L) {
+        cancelStatusReset()
+        statusResetJob = viewModelScope.launch {
+            delay(delayMs)
+            if (!uiState.isRunning) {
+                uiState = uiState.copy(statusMessage = defaultStatusMessage())
             }
         }
     }
 
-    private fun buildDistanceMatrixForLandmarks(landmarks: List<Landmark>): List<List<Double>> {
-        return landmarks.map { from ->
-            landmarks.map { to ->
-                val dx = (from.point.x - to.point.x).toDouble()
-                val dy = (from.point.y - to.point.y).toDouble()
-                hypot(dx, dy)
-            }
-        }
+    companion object {
+        private var cachedBaseGrid: List<List<MapCell>>? = null
     }
+}
 
-    private fun calculateLandmarksLength(route: List<Landmark>): Double {
-        if (route.size < 2) return 0.0
-        var sum = 0.0
-        for (i in 0 until route.size - 1) {
-            val dx = (route[i].point.x - route[i + 1].point.x).toDouble()
-            val dy = (route[i].point.y - route[i + 1].point.y).toDouble()
-            sum += hypot(dx, dy)
-        }
-        return sum
+private fun FoodCategory.displayName(): String {
+    return when (this) {
+        FoodCategory.COFFEE -> "Кофе"
+        FoodCategory.PANCAKES -> "Блины"
+        FoodCategory.FULL_MEAL -> "Полный обед"
+        FoodCategory.SNACK -> "Перекус"
+        FoodCategory.DISPOSABLE_TABLEWARE -> "Посуда"
     }
 }

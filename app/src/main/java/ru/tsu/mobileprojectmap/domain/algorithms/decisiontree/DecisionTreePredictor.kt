@@ -28,20 +28,23 @@ object DecisionTreePredictor {
     ): String {
         return when (node) {
             is DecisionTreeNode.LeafNode -> {
-                decisionPath += "Результат: ${node.label}"
+                decisionPath += "Лист дерева: ${node.label}"
                 node.label
             }
 
             is DecisionTreeNode.DecisionNode -> {
-                val featureValue = input[node.featureName]
-                decisionPath += "${node.featureName} = ${featureValue ?: MISSING_FEATURE_VALUE}"
+                val featureValue = input[node.featureName]?.ifBlank { MISSING_FEATURE_VALUE } ?: MISSING_FEATURE_VALUE
+                decisionPath += "Проверяем признак `${node.featureName}`: `$featureValue`"
 
-                val nextNode = featureValue?.let { node.branches[it] }
+                val nextNode = node.branches[featureValue]
                 if (nextNode == null) {
+                    val availableBranches = node.branches.keys.sorted().joinToString()
                     val fallbackLabel = fallbackPrediction(node)
-                    decisionPath += "Использован fallback: $fallbackLabel"
+                    decisionPath += "Ветка `$featureValue` не найдена. Доступно: $availableBranches"
+                    decisionPath += "Используем fallback: $fallbackLabel"
                     fallbackLabel
                 } else {
+                    decisionPath += "Переход по ветке `$featureValue`"
                     predictNode(nextNode, input, decisionPath)
                 }
             }

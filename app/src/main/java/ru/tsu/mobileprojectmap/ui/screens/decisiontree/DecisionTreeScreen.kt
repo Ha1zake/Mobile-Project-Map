@@ -1,5 +1,6 @@
 package ru.tsu.mobileprojectmap.ui.screens.decisiontree
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,9 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import ru.tsu.mobileprojectmap.domain.algorithms.decisiontree.DecisionTreeNode
 import ru.tsu.mobileprojectmap.domain.algorithms.decisiontree.DecisionTreeResult
@@ -49,7 +52,11 @@ fun DecisionTreeScreen(
     var treeResult by remember { mutableStateOf<DecisionTreeResult?>(null) }
     var predictionResult by remember { mutableStateOf<PredictionResult?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    val featureInputs = remember { mutableStateMapOf<String, String>() }
+    val featureInputs = remember {
+        mutableStateMapOf<String, String>().apply {
+            FEATURE_FIELDS.forEach { field -> put(field.name, "") }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -57,7 +64,7 @@ fun DecisionTreeScreen(
                 title = { Text("Дерево решений") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 }
             )
@@ -67,14 +74,34 @@ fun DecisionTreeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(16.dp)
+                .testTag("decision_tree_screen"),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Вставьте CSV-выборку, постройте дерево и проверьте прогноз для нового набора признаков.",
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Выбор места для обеда",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "Вставьте CSV-выборку, постройте дерево и проверьте полный путь принятия решения.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
 
             OutlinedTextField(
                 value = csvText,
@@ -91,22 +118,19 @@ fun DecisionTreeScreen(
             ) {
                 Button(
                     onClick = {
-                        runCatching {
-                            buildDecisionTreeUseCase(csvText)
-                        }.onSuccess { result ->
-                            treeResult = result
-                            predictionResult = null
-                            errorMessage = null
-                            featureInputs.clear()
-                            extractFeatureNames(result.root).forEach { feature ->
-                                featureInputs[feature] = ""
+                        runCatching { buildDecisionTreeUseCase(csvText) }
+                            .onSuccess { result ->
+                                treeResult = result
+                                predictionResult = null
+                                errorMessage = null
                             }
-                        }.onFailure { error ->
-                            treeResult = null
-                            predictionResult = null
-                            errorMessage = error.message ?: "Не удалось построить дерево"
-                        }
-                    }
+                            .onFailure { error ->
+                                treeResult = null
+                                predictionResult = null
+                                errorMessage = error.message ?: "Не удалось построить дерево."
+                            }
+                    },
+                    modifier = Modifier.testTag("decision_tree_build")
                 ) {
                     Text("Построить дерево")
                 }
@@ -114,6 +138,7 @@ fun DecisionTreeScreen(
                 Button(
                     onClick = {
                         csvText = DEFAULT_DECISION_TREE_CSV
+                        predictionResult = null
                         errorMessage = null
                     }
                 ) {
@@ -155,16 +180,21 @@ fun DecisionTreeScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "Проверка нового сценария",
+                            text = "Ввод признаков",
                             style = MaterialTheme.typography.titleMedium
                         )
+                        Text(
+                            text = "Заполните все поля, чтобы увидеть полный набор введённых данных и проход по дереву.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
 
-                        featureInputs.keys.sorted().forEach { featureName ->
+                        FEATURE_FIELDS.forEach { field ->
                             OutlinedTextField(
-                                value = featureInputs[featureName].orEmpty(),
-                                onValueChange = { featureInputs[featureName] = it },
+                                value = featureInputs[field.name].orEmpty(),
+                                onValueChange = { featureInputs[field.name] = it },
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text(featureName) }
+                                label = { Text(field.label) },
+                                placeholder = { Text(field.hint) }
                             )
                         }
 
@@ -180,7 +210,7 @@ fun DecisionTreeScreen(
                                     errorMessage = null
                                 }.onFailure { error ->
                                     predictionResult = null
-                                    errorMessage = error.message ?: "Не удалось получить прогноз"
+                                    errorMessage = error.message ?: "Не удалось получить прогноз."
                                 }
                             }
                         ) {
@@ -193,7 +223,33 @@ fun DecisionTreeScreen(
                                 text = "Рекомендованное заведение: ${prediction.predictedLabel}",
                                 style = MaterialTheme.typography.titleSmall
                             )
-                            Text("Путь по дереву:")
+
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "Введённые признаки",
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    FEATURE_FIELDS.forEach { field ->
+                                        Text(
+                                            text = "${field.name}: ${featureInputs[field.name].orEmpty().ifBlank { "<пусто>" }}",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = "Полный проход по дереву:",
+                                style = MaterialTheme.typography.titleSmall
+                            )
                             prediction.decisionPath.forEach { step ->
                                 Text("• $step")
                             }
@@ -218,9 +274,7 @@ private fun TreeNodeView(
             Text(
                 text = buildString {
                     append(indent)
-                    branchLabel?.let {
-                        append("[$it] ")
-                    }
+                    branchLabel?.let { append("[$it] ") }
                     append("Признак: ${node.featureName}")
                 }
             )
@@ -238,9 +292,7 @@ private fun TreeNodeView(
             Text(
                 text = buildString {
                     append(indent)
-                    branchLabel?.let {
-                        append("[$it] ")
-                    }
+                    branchLabel?.let { append("[$it] ") }
                     append("Результат: ${node.label}")
                 }
             )
@@ -248,16 +300,20 @@ private fun TreeNodeView(
     }
 }
 
-private fun extractFeatureNames(node: DecisionTreeNode): Set<String> {
-    return when (node) {
-        is DecisionTreeNode.LeafNode -> emptySet()
-        is DecisionTreeNode.DecisionNode -> {
-            setOf(node.featureName) + node.branches.values.flatMap { child ->
-                extractFeatureNames(child)
-            }
-        }
-    }
-}
+private data class FeatureField(
+    val name: String,
+    val label: String,
+    val hint: String
+)
+
+private val FEATURE_FIELDS = listOf(
+    FeatureField("location", "location", "main_building / second_building / bus_stop / campus_center"),
+    FeatureField("budget", "budget", "low / medium / high"),
+    FeatureField("time_available", "time_available", "very_short / short / medium"),
+    FeatureField("food_type", "food_type", "coffee / pancakes / full_meal / snack"),
+    FeatureField("queue_tolerance", "queue_tolerance", "low / medium / high"),
+    FeatureField("weather", "weather", "good / bad")
+)
 
 private const val DEFAULT_DECISION_TREE_CSV = """
 location,budget,time_available,food_type,queue_tolerance,weather,recommended_place

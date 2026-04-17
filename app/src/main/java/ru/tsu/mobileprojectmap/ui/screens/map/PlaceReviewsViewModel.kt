@@ -35,8 +35,8 @@ class PlaceReviewsViewModel(
 
     fun addReview(placeId: String, rating: Int, description: String) {
         try {
-            require(rating in 0..9) { "Рейтинг должен быть в диапазоне 0..9" }
-            require(description.isNotBlank()) { "Описание не может быть пустым" }
+            require(rating in 0..9) { "Оценка должна быть в диапазоне от 0 до 9." }
+            require(description.isNotBlank()) { "Описание отзыва не может быть пустым." }
 
             val review = StoreReview(
                 placeId = placeId,
@@ -50,8 +50,7 @@ class PlaceReviewsViewModel(
                 error = null
             )
         } catch (e: Exception) {
-            uiState = uiState.copy(error = e.message ?: "Не удалось сохранить отзыв")
+            uiState = uiState.copy(error = e.message ?: "Не удалось сохранить отзыв.")
         }
     }
 }
-

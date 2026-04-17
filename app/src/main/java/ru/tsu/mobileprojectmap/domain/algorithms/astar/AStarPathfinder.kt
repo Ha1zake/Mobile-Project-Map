@@ -5,7 +5,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlin.math.abs
-import kotlin.math.min
 import ru.tsu.mobileprojectmap.domain.model.GridCell
 import ru.tsu.mobileprojectmap.domain.model.Point
 
@@ -22,17 +21,11 @@ class AStarPathfinder {
         Point(1, 0),
         Point(-1, 0),
         Point(0, 1),
-        Point(0, -1),
-        Point(1, 1),
-        Point(1, -1),
-        Point(-1, 1),
-        Point(-1, -1)
+        Point(0, -1)
     )
 
     private fun heuristic(a: Point, b: Point): Double {
-        val dx = abs(a.x - b.x)
-        val dy = abs(a.y - b.y)
-        return dx + dy + (1.4 - 2) * min(dx, dy)
+        return (abs(a.x - b.x) + abs(a.y - b.y)).toDouble()
     }
 
     fun findPath(
@@ -73,17 +66,10 @@ class AStarPathfinder {
 
                 val cell = cellMap[neighbor] ?: continue
 
-                if (dir.x != 0 && dir.y != 0) {
-                    val first = cellMap[Point(current.point.x, neighbor.y)]
-                    val second = cellMap[Point(neighbor.x, current.point.y)]
-                    if (first?.isWalkable != true || second?.isWalkable != true) continue
-                }
-
                 if (!cell.isWalkable) continue
 
                 val neighborNode = nodeMap[neighbor] ?: Node(point = neighbor)
-                val cost = if (dir.x != 0 && dir.y != 0) 1.4 else 1.0
-                val newG = current.g + cost
+                val newG = current.g + 1.0
 
                 if (newG < neighborNode.g) {
                     neighborNode.g = newG
@@ -139,7 +125,6 @@ class AStarPathfinder {
             closedSet.add(current.point)
             iteration++
 
-            // Не отправляем в UI каждый шаг: это сильно нагружает Compose на больших картах.
             if (iteration == 1 || iteration % 4 == 0) {
                 emit(
                     AStarStep(
@@ -152,7 +137,7 @@ class AStarPathfinder {
                 )
             }
 
-            delay(24)
+            delay(10)
 
             for (dir in directions) {
                 val neighbor = Point(
@@ -164,17 +149,10 @@ class AStarPathfinder {
 
                 val cell = cellMap[neighbor] ?: continue
 
-                if (dir.x != 0 && dir.y != 0) {
-                    val first = cellMap[Point(current.point.x, neighbor.y)]
-                    val second = cellMap[Point(neighbor.x, current.point.y)]
-                    if (first?.isWalkable != true || second?.isWalkable != true) continue
-                }
-
                 if (!cell.isWalkable) continue
 
                 val neighborNode = nodeMap[neighbor] ?: Node(point = neighbor)
-                val cost = if (dir.x != 0 && dir.y != 0) 1.4 else 1.0
-                val newG = current.g + cost
+                val newG = current.g + 1.0
 
                 if (newG < neighborNode.g) {
                     neighborNode.g = newG

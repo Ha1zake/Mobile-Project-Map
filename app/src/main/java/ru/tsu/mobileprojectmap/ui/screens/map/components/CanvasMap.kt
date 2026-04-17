@@ -14,12 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
+import ru.tsu.mobileprojectmap.domain.algorithms.kmeans.Cluster
 import ru.tsu.mobileprojectmap.domain.algorithms.kmeans.KMeansResult
 import ru.tsu.mobileprojectmap.domain.algorithms.kmeans.getClusterForPoint
-import ru.tsu.mobileprojectmap.domain.algorithms.kmeans.Cluster
 import ru.tsu.mobileprojectmap.domain.model.Place
 import ru.tsu.mobileprojectmap.domain.model.PlaceType
 import ru.tsu.mobileprojectmap.domain.model.Point
@@ -36,150 +37,174 @@ fun CanvasMap(
     currentCell: Point?,
     places: List<Place>,
     currentMode: MapEditMode,
+    modifier: Modifier = Modifier,
     kMeansResult: KMeansResult? = null,
+    allowPlaceTap: Boolean = false,
+    showPlaceLabels: Boolean = true,
     onCellClick: (row: Int, col: Int) -> Unit,
     onObstacleDrag: (row: Int, col: Int) -> Unit,
     onClusterClick: (cluster: Cluster) -> Unit,
     onPlaceClick: (place: Place) -> Unit,
     worldWidth: Dp,
-    worldHeight: Dp,
-    modifier: Modifier = Modifier
+    worldHeight: Dp
 ) {
     if (cells.isEmpty() || cells.first().isEmpty()) return
 
     val rows = cells.size
     val cols = cells.first().size
+    val interactionsEnabled = currentMode != MapEditMode.VIEW || allowPlaceTap
     var lastDraggedCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     Canvas(
         modifier = modifier
             .size(worldWidth, worldHeight)
-            // Ключи должны включать `kMeansResult`, иначе обработчик кликов может "залипнуть"
-            // на старом значении (например, когда кластеры были ещё null).
-            .pointerInput(cells, currentMode, kMeansResult) {
-                detectTapGestures { tapOffset ->
-                    val cellWidth = size.width / cols
-                    val cellHeight = size.height / rows
+            .then(
+                if (!interactionsEnabled) {
+                    Modifier
+                } else {
+                    Modifier.pointerInput(cells, currentMode, kMeansResult, allowPlaceTap) {
+                        detectTapGestures { tapOffset ->
+                            val cellWidth = size.width / cols
+                            val cellHeight = size.height / rows
 
-                    val tappedCluster = if (currentMode == MapEditMode.VIEW) {
-                        kMeansResult?.clusters?.firstOrNull { cluster ->
-                            val centerX = cluster.centroid.x.toFloat() * cellWidth + cellWidth / 2f
-                            val centerY = cluster.centroid.y.toFloat() * cellHeight + cellHeight / 2f
-                            val dx = tapOffset.x - centerX
-                            val dy = tapOffset.y - centerY
-                            val distance = sqrt(dx * dx + dy * dy)
-                            // Попадание делаем ближе к тому, как визуально рисуется кластер.
-                            distance <= minOf(cellWidth, cellHeight) * 5.8f
-                        }
-                    } else {
-                        null
-                    }
+                            if (allowPlaceTap && currentMode == MapEditMode.VIEW) {
+                                val tappedCluster = kMeansResult?.clusters?.firstOrNull { cluster ->
+                                    val centerX = cluster.centroid.x.toFloat() * cellWidth + cellWidth / 2f
+                                    val centerY = cluster.centroid.y.toFloat() * cellHeight + cellHeight / 2f
+                                    val dx = tapOffset.x - centerX
+                                    val dy = tapOffset.y - centerY
+                                    sqrt(dx * dx + dy * dy) <= minOf(cellWidth, cellHeight) * 8.2f
+                                }
 
-                    if (tappedCluster != null) {
-                        onClusterClick(tappedCluster)
-                        return@detectTapGestures
-                    }
+                                if (tappedCluster != null) {
+                                    onClusterClick(tappedCluster)
+                                    return@detectTapGestures
+                                }
 
-                    val tappedPlace = if (currentMode == MapEditMode.VIEW) {
-                        var bestPlace: Place? = null
-                        var bestDistance = Float.MAX_VALUE
-                        val maxTapRadius = minOf(cellWidth, cellHeight) * 3.4f
+                                val tappedPlace = places.minByOrNull { place ->
+                                    val centerX = place.point.x * cellWidth + cellWidth / 2f
+                                    val centerY = place.point.y * cellHeight + cellHeight / 2f
+                                    val dx = tapOffset.x - centerX
+                                    val dy = tapOffset.y - centerY
+                                    sqrt(dx * dx + dy * dy)
+                                }
 
-                        places.forEach { place ->
-                            val centerX = place.point.x * cellWidth + cellWidth / 2f
-                            val centerY = place.point.y * cellHeight + cellHeight / 2f
-                            val dx = tapOffset.x - centerX
-                            val dy = tapOffset.y - centerY
-                            val dist = sqrt(dx * dx + dy * dy)
-                            if (dist <= maxTapRadius && dist < bestDistance) {
-                                bestDistance = dist
-                                bestPlace = place
+                                if (tappedPlace != null) {
+                                    val centerX = tappedPlace.point.x * cellWidth + cellWidth / 2f
+                                    val centerY = tappedPlace.point.y * cellHeight + cellHeight / 2f
+                                    val dx = tapOffset.x - centerX
+                                    val dy = tapOffset.y - centerY
+                                    val distance = sqrt(dx * dx + dy * dy)
+                                    if (distance <= minOf(cellWidth, cellHeight) * 3.4f) {
+                                        onPlaceClick(tappedPlace)
+                                        return@detectTapGestures
+                                    }
+                                }
+                            }
+
+                            val col = (tapOffset.x / cellWidth).toInt()
+                            val row = (tapOffset.y / cellHeight).toInt()
+
+                            if (row in 0 until rows && col in 0 until cols) {
+                                onCellClick(row, col)
                             }
                         }
-                        bestPlace
-                    } else {
-                        null
-                    }
-
-                    if (tappedPlace != null) {
-                        onPlaceClick(tappedPlace)
-                        return@detectTapGestures
-                    }
-
-                    val col = (tapOffset.x / cellWidth).toInt()
-                    val row = (tapOffset.y / cellHeight).toInt()
-
-                    if (row in 0 until rows && col in 0 until cols) {
-                        onCellClick(row, col)
                     }
                 }
-            }
-            .pointerInput(cells, currentMode) {
-                if (currentMode != MapEditMode.SET_OBSTACLE) return@pointerInput
+            )
+            .then(
+                if (currentMode != MapEditMode.SET_OBSTACLE) {
+                    Modifier
+                } else {
+                    Modifier.pointerInput(cells, currentMode) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                val cellWidth = size.width / cols
+                                val cellHeight = size.height / rows
+                                val col = (offset.x / cellWidth).toInt()
+                                val row = (offset.y / cellHeight).toInt()
 
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        val cellWidth = size.width / cols
-                        val cellHeight = size.height / rows
-                        val col = (offset.x / cellWidth).toInt()
-                        val row = (offset.y / cellHeight).toInt()
+                                if (row in 0 until rows && col in 0 until cols) {
+                                    lastDraggedCell = row to col
+                                    onObstacleDrag(row, col)
+                                }
+                            },
+                            onDragEnd = { lastDraggedCell = null },
+                            onDragCancel = { lastDraggedCell = null },
+                            onDrag = { change, _ ->
+                                val cellWidth = size.width / cols
+                                val cellHeight = size.height / rows
+                                val col = (change.position.x / cellWidth).toInt()
+                                val row = (change.position.y / cellHeight).toInt()
 
-                        if (row in 0 until rows && col in 0 until cols) {
-                            lastDraggedCell = row to col
-                            onObstacleDrag(row, col)
-                        }
-                    },
-                    onDragEnd = {
-                        lastDraggedCell = null
-                    },
-                    onDragCancel = {
-                        lastDraggedCell = null
-                    },
-                    onDrag = { change, _ ->
-                        val cellWidth = size.width / cols
-                        val cellHeight = size.height / rows
-                        val col = (change.position.x / cellWidth).toInt()
-                        val row = (change.position.y / cellHeight).toInt()
+                                if (row !in 0 until rows || col !in 0 until cols) return@detectDragGestures
 
-                        if (row !in 0 until rows || col !in 0 until cols) return@detectDragGestures
-
-                        val draggedCell = row to col
-                        if (lastDraggedCell != draggedCell) {
-                            lastDraggedCell = draggedCell
-                            onObstacleDrag(row, col)
-                        }
+                                val draggedCell = row to col
+                                if (lastDraggedCell != draggedCell) {
+                                    lastDraggedCell = draggedCell
+                                    onObstacleDrag(row, col)
+                                }
+                            }
+                        )
                     }
-                )
-            }
+                }
+            )
     ) {
         val cellWidth = size.width / cols
         val cellHeight = size.height / rows
+        val markerRadius = minOf(cellWidth, cellHeight)
 
         cells.forEach { rowList ->
             rowList.forEach { cell ->
-                val left = cell.col * cellWidth
-                val top = cell.row * cellHeight
-
-                val shouldDraw = when (cell.type) {
-                    CellType.START, CellType.FINISH -> false
-                    CellType.OBSTACLE -> cell.baseType == CellType.EMPTY
-                    CellType.EMPTY -> false
-                }
-
-                val color = when (cell.type) {
-                    CellType.EMPTY -> Color.Transparent
-                    CellType.START -> Color(0xAA4CAF50)
-                    CellType.FINISH -> Color(0xAAF44336)
-                    CellType.OBSTACLE -> Color(0x88000000)
-                }
-
-                if (shouldDraw) {
+                if (cell.type == CellType.OBSTACLE && cell.baseType == CellType.EMPTY) {
                     drawRect(
-                        color = color,
-                        topLeft = Offset(left, top),
+                        color = Color(0x88000000),
+                        topLeft = Offset(cell.col * cellWidth, cell.row * cellHeight),
                         size = Size(cellWidth, cellHeight)
                     )
                 }
+            }
+        }
+
+        if (path.size > 1) {
+            for (index in 0 until path.lastIndex) {
+                val from = path[index]
+                val to = path[index + 1]
+                drawLine(
+                    color = Color(0xFF1E88E5),
+                    start = Offset(
+                        x = from.x * cellWidth + cellWidth / 2f,
+                        y = from.y * cellHeight + cellHeight / 2f
+                    ),
+                    end = Offset(
+                        x = to.x * cellWidth + cellWidth / 2f,
+                        y = to.y * cellHeight + cellHeight / 2f
+                    ),
+                    strokeWidth = markerRadius * 1.8f + 2f,
+                    cap = StrokeCap.Round
+                )
+            }
+        }
+
+        visitedCells.forEach { point ->
+            val cell = cells[point.y][point.x]
+            if (cell.type != CellType.START && cell.type != CellType.FINISH) {
+                drawRect(
+                    color = Color(0x55FFB300),
+                    topLeft = Offset(point.x * cellWidth, point.y * cellHeight),
+                    size = Size(cellWidth, cellHeight)
+                )
+            }
+        }
+
+        currentCell?.let { point ->
+            val cell = cells[point.y][point.x]
+            if (cell.type != CellType.START && cell.type != CellType.FINISH) {
+                drawRect(
+                    color = Color(0xAAFF7043),
+                    topLeft = Offset(point.x * cellWidth, point.y * cellHeight),
+                    size = Size(cellWidth, cellHeight)
+                )
             }
         }
 
@@ -187,75 +212,18 @@ fun CanvasMap(
             rowList.forEach { cell ->
                 if (cell.type != CellType.START && cell.type != CellType.FINISH) return@forEach
 
-                val centerX = cell.col * cellWidth + cellWidth / 2f
-                val centerY = cell.row * cellHeight + cellHeight / 2f
-                val outerRadius = minOf(cellWidth, cellHeight) * 2.3f
-                val innerRadius = minOf(cellWidth, cellHeight) * 1.8f
+                val center = Offset(
+                    x = cell.col * cellWidth + cellWidth / 2f,
+                    y = cell.row * cellHeight + cellHeight / 2f
+                )
                 val markerColor = when (cell.type) {
-                    CellType.START -> Color(0xFF43A047)
-                    CellType.FINISH -> Color(0xFFE53935)
+                    CellType.START -> Color(0xFF2E7D32)
+                    CellType.FINISH -> Color(0xFFC62828)
                     else -> Color.Transparent
                 }
 
-                drawCircle(
-                    color = Color.White,
-                    radius = outerRadius,
-                    center = Offset(centerX, centerY)
-                )
-
-                drawCircle(
-                    color = markerColor,
-                    radius = innerRadius,
-                    center = Offset(centerX, centerY)
-                )
-            }
-        }
-
-        visitedCells.forEach { point ->
-            val isStart = cells[point.y][point.x].type == CellType.START
-            val isFinish = cells[point.y][point.x].type == CellType.FINISH
-
-            if (!isStart && !isFinish) {
-                val left = point.x * cellWidth
-                val top = point.y * cellHeight
-
-                drawRect(
-                    color = Color(0x55FFB300),
-                    topLeft = Offset(left, top),
-                    size = Size(cellWidth, cellHeight)
-                )
-            }
-        }
-
-        currentCell?.let { point ->
-            val isStart = cells[point.y][point.x].type == CellType.START
-            val isFinish = cells[point.y][point.x].type == CellType.FINISH
-
-            if (!isStart && !isFinish) {
-                val left = point.x * cellWidth
-                val top = point.y * cellHeight
-
-                drawRect(
-                    color = Color(0xAAFF5722),
-                    topLeft = Offset(left, top),
-                    size = Size(cellWidth, cellHeight)
-                )
-            }
-        }
-
-        path.forEach { point ->
-            val isStart = cells[point.y][point.x].type == CellType.START
-            val isFinish = cells[point.y][point.x].type == CellType.FINISH
-
-            if (!isStart && !isFinish) {
-                val left = point.x * cellWidth
-                val top = point.y * cellHeight
-
-                drawRect(
-                    color = Color(0xAA2196F3),
-                    topLeft = Offset(left, top),
-                    size = Size(cellWidth, cellHeight)
-                )
+                drawCircle(color = Color.White, radius = markerRadius * 2.8f, center = center)
+                drawCircle(color = markerColor, radius = markerRadius * 2f, center = center)
             }
         }
 
@@ -274,11 +242,11 @@ fun CanvasMap(
         }
 
         val clusterColors = listOf(
-            Color(0xFFE53935),
-            Color(0xFF1E88E5),
-            Color(0xFF43A047),
-            Color(0xFF8E24AA),
-            Color(0xFFFB8C00)
+            Color(0xFFC62828),
+            Color(0xFF1565C0),
+            Color(0xFF2E7D32),
+            Color(0xFF6A1B9A),
+            Color(0xFFEF6C00)
         )
 
         places.forEach { place ->
@@ -288,40 +256,41 @@ fun CanvasMap(
             val clusterColor = cluster?.let { clusterColors[it.id % clusterColors.size] }
 
             val placeColor = when (place.type) {
-                PlaceType.CAFE -> clusterColor ?: Color(0xFF1976D2)
-                PlaceType.COWORKING -> clusterColor ?: Color(0xFF7B1FA2)
-                PlaceType.LANDMARK -> Color(0xFFFF9800)
+                PlaceType.CAFE -> clusterColor ?: Color(0xFF0D47A1)
+                PlaceType.COWORKING -> clusterColor ?: Color(0xFF6A1B9A)
+                PlaceType.LANDMARK -> Color(0xFFF57C00)
             }
 
             drawCircle(
                 color = Color.White,
-                radius = minOf(cellWidth, cellHeight) * 3.2f,
+                radius = markerRadius * 3.1f,
                 center = Offset(centerX, centerY)
             )
-
             drawCircle(
                 color = placeColor,
-                radius = minOf(cellWidth, cellHeight) * 2.4f,
+                radius = markerRadius * 2.3f,
                 center = Offset(centerX, centerY)
             )
 
-            drawContext.canvas.nativeCanvas.apply {
-                val text = place.name
-                val textWidth = textPaint.measureText(text)
-                val textX = centerX + 18f
-                val textY = centerY - 18f
+            if (showPlaceLabels) {
+                drawContext.canvas.nativeCanvas.apply {
+                    val text = place.name
+                    val textWidth = textPaint.measureText(text)
+                    val textX = centerX + 18f
+                    val textY = centerY - 18f
 
-                drawRoundRect(
-                    textX - 10f,
-                    textY - 30f,
-                    textX + textWidth + 10f,
-                    textY + 10f,
-                    10f,
-                    10f,
-                    textBgPaint
-                )
+                    drawRoundRect(
+                        textX - 10f,
+                        textY - 30f,
+                        textX + textWidth + 10f,
+                        textY + 10f,
+                        10f,
+                        10f,
+                        textBgPaint
+                    )
 
-                drawText(text, textX, textY, textPaint)
+                    drawText(text, textX, textY, textPaint)
+                }
             }
         }
 
@@ -331,31 +300,27 @@ fun CanvasMap(
             val clusterColor = clusterColors[cluster.id % clusterColors.size]
 
             drawCircle(
-                color = clusterColor.copy(alpha = 0.35f),
-                radius = minOf(cellWidth, cellHeight) * 5.2f,
+                color = clusterColor.copy(alpha = 0.24f),
+                radius = markerRadius * 6f,
                 center = Offset(centerX, centerY)
             )
-
             drawCircle(
                 color = clusterColor,
-                radius = minOf(cellWidth, cellHeight) * 3.2f,
+                radius = markerRadius * 3.4f,
                 center = Offset(centerX, centerY)
             )
-
             drawCircle(
                 color = Color.White,
-                radius = minOf(cellWidth, cellHeight) * 1.4f,
+                radius = markerRadius * 1.5f,
                 center = Offset(centerX, centerY)
             )
         }
 
-        // Постоянная отрисовка всей сетки 200x200 заметно нагружает Canvas.
-        // Оставляем её только в режимах, где сетка действительно помогает взаимодействию.
         if (currentMode != MapEditMode.VIEW) {
             for (col in 0..cols) {
                 val x = col * cellWidth
                 drawLine(
-                    color = Color.White.copy(alpha = 0.35f),
+                    color = Color.White.copy(alpha = 0.28f),
                     start = Offset(x, 0f),
                     end = Offset(x, size.height),
                     strokeWidth = 1f
@@ -365,7 +330,7 @@ fun CanvasMap(
             for (row in 0..rows) {
                 val y = row * cellHeight
                 drawLine(
-                    color = Color.White.copy(alpha = 0.35f),
+                    color = Color.White.copy(alpha = 0.28f),
                     start = Offset(0f, y),
                     end = Offset(size.width, y),
                     strokeWidth = 1f

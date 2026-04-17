@@ -1,5 +1,6 @@
 package ru.tsu.mobileprojectmap.domain.algorithms.genetic
 
+import kotlin.math.max
 import ru.tsu.mobileprojectmap.domain.model.FoodCategory
 import ru.tsu.mobileprojectmap.domain.model.MenuItem
 import ru.tsu.mobileprojectmap.domain.model.Place
@@ -43,15 +44,27 @@ class FitnessCalculator {
             request
         )
 
+        val budgetOverflow = max(0.0, totalPrice - request.maxBudget)
         val missingCategoriesCount =
             request.requiredCategories.size - coveredCategories.size
+        val closingSoonBonus = selectedPlaces.sumOf { place ->
+            val hoursLeft = place.closeHour - request.currentHour
+            when {
+                hoursLeft <= 0 -> 0.0
+                hoursLeft == 1 -> 180.0
+                hoursLeft == 2 -> 90.0
+                else -> 0.0
+            }
+        }
 
 
         return coveredCategories.size * 1000.0 -
                 missingCategoriesCount * 1500.0 -
                 routeDistance * 10.0 -
                 totalPrice -
-                closedPlacesCount * 500.0
+                closedPlacesCount * 500.0 -
+                budgetOverflow * 4.0 +
+                closingSoonBonus
     }
 
     fun getTotalPrice(
