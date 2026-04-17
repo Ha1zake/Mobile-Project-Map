@@ -31,8 +31,6 @@ import ru.tsu.mobileprojectmap.ui.screens.map.model.CellType
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapCell
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
 import java.util.Calendar
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 class MapViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -254,7 +252,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             )
 
             val routePlaces = result.bestRoute.mapNotNull { index -> cafes.getOrNull(index) }
-            val routeStops = listOf(startPoint) + routePlaces.map { it.point }
+            val routeStops = buildRouteStops(routePlaces.map { it.point }, includeStart = uiState.startCell != null)
             val fullRoute = buildAStarPathForStops(routeStops, grid)
             val selectedGoods = request.requiredCategories.joinToString { it.displayName() }
 
@@ -321,10 +319,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
             val distances = buildAStarDistanceMatrix(landmarks.map { it.point }, grid)
             val route = antColonySolver.solve(landmarks, distances, startLandmark)
-            val displayStops = buildList {
-                add(startPoint)
-                addAll(route.map { it.point })
-            }
+            val displayStops = buildRouteStops(route.map { it.point }, includeStart = uiState.startCell != null)
             val fullRoute = buildAStarPathForStops(displayStops, grid)
 
             withContext(Dispatchers.Main) {
@@ -471,7 +466,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private fun createGridFast(rows: Int, cols: Int): List<List<MapCell>> {
         val bitmap = BitmapFactory.decodeResource(
             getApplication<Application>().resources,
-            R.drawable.campus_map2,
+            R.drawable.campus_map_mask,
             BitmapFactory.Options().apply {
                 inPreferredConfig = BitmapFactory.Options().inPreferredConfig
                 inScaled = false
@@ -483,27 +478,26 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         val walkable = Array(rows) { BooleanArray(cols) }
 
         for (row in 0 until rows) {
-            val centerY = ((row + 0.5f) * sourceHeight / rows).roundToInt()
             for (col in 0 until cols) {
-                val centerX = ((col + 0.5f) * sourceWidth / cols).roundToInt()
-                var isRoad = false
+                val left = (col * sourceWidth / cols - ROAD_SAMPLE_PADDING).coerceAtLeast(0)
+                val right = (((col + 1) * sourceWidth / cols) + ROAD_SAMPLE_PADDING).coerceAtMost(sourceWidth - 1)
+                val top = (row * sourceHeight / rows - ROAD_SAMPLE_PADDING).coerceAtLeast(0)
+                val bottom = (((row + 1) * sourceHeight / rows) + ROAD_SAMPLE_PADDING).coerceAtMost(sourceHeight - 1)
+                var roadPixels = 0
 
-                for (offsetY in -4..4) {
-                    if (isRoad) break
-                    for (offsetX in -4..4) {
-                        val sampleX = centerX + offsetX
-                        val sampleY = centerY + offsetY
-                        if (sampleX !in 0 until sourceWidth || sampleY !in 0 until sourceHeight) {
-                            continue
-                        }
-                        if (isWalkablePixel(bitmap.getPixel(sampleX, sampleY))) {
-                            isRoad = true
-                            break
+                for (sampleY in top..bottom) {
+                    if (roadPixels >= MIN_ROAD_PIXELS_PER_CELL) break
+                    for (sampleX in left..right) {
+                        if (isRoadPixel(bitmap.getPixel(sampleX, sampleY))) {
+                            roadPixels++
+                            if (roadPixels >= MIN_ROAD_PIXELS_PER_CELL) {
+                                break
+                            }
                         }
                     }
                 }
 
-                walkable[row][col] = isRoad
+                walkable[row][col] = roadPixels >= MIN_ROAD_PIXELS_PER_CELL
             }
         }
 
@@ -518,11 +512,11 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun isWalkablePixel(pixel: Int): Boolean {
+    private fun isRoadPixel(pixel: Int): Boolean {
         val red = Color.red(pixel)
         val green = Color.green(pixel)
         val blue = Color.blue(pixel)
-        return red > 150 && blue > 150 && green < 190 && abs(red - blue) < 100
+        return red > 120 && blue > 120 && green < 210 && red > green + 18 && blue > green + 18
     }
 
     private fun expandRoads(source: Array<BooleanArray>): Array<BooleanArray> {
@@ -533,18 +527,14 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         for (row in 0 until rows) {
             for (col in 0 until cols) {
                 if (!source[row][col]) continue
-                result[row][col] = true
 
-                val neighbours = listOf(
-                    row - 1 to col,
-                    row + 1 to col,
-                    row to col - 1,
-                    row to col + 1
-                )
-
-                neighbours.forEach { (newRow, newCol) ->
-                    if (newRow in 0 until rows && newCol in 0 until cols) {
-                        result[newRow][newCol] = true
+                for (rowOffset in -ROAD_EXPANSION_RADIUS..ROAD_EXPANSION_RADIUS) {
+                    for (colOffset in -ROAD_EXPANSION_RADIUS..ROAD_EXPANSION_RADIUS) {
+                        val newRow = row + rowOffset
+                        val newCol = col + colOffset
+                        if (newRow in 0 until rows && newCol in 0 until cols) {
+                            result[newRow][newCol] = true
+                        }
                     }
                 }
             }
@@ -572,7 +562,12 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             FoodCategory.PANCAKES to 220.0,
             FoodCategory.FULL_MEAL to 360.0,
             FoodCategory.SNACK to 140.0,
-            FoodCategory.DISPOSABLE_TABLEWARE to 60.0
+            FoodCategory.DISPOSABLE_TABLEWARE to 60.0,
+            FoodCategory.TEA to 120.0,
+            FoodCategory.DESSERT to 170.0,
+            FoodCategory.SANDWICH to 190.0,
+            FoodCategory.SALAD to 210.0,
+            FoodCategory.WATER to 80.0
         )
 
         return cafes.flatMap { place ->
@@ -596,6 +591,11 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             "full_meal" -> FoodCategory.FULL_MEAL
             "snack" -> FoodCategory.SNACK
             "disposable_tableware" -> FoodCategory.DISPOSABLE_TABLEWARE
+            "tea" -> FoodCategory.TEA
+            "dessert" -> FoodCategory.DESSERT
+            "sandwich" -> FoodCategory.SANDWICH
+            "salad" -> FoodCategory.SALAD
+            "water" -> FoodCategory.WATER
             else -> null
         }
     }
@@ -659,6 +659,26 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         return fullPath
+    }
+
+    private fun buildRouteStops(
+        stops: List<Point>,
+        includeStart: Boolean
+    ): List<Point> {
+        val routeStops = mutableListOf<Point>()
+        val addedStops = mutableSetOf<Point>()
+        if (includeStart) {
+            val startPoint = getRouteStartPoint()
+            routeStops.add(startPoint)
+            addedStops.add(startPoint)
+        }
+        stops.forEach { point ->
+            if (point !in addedStops) {
+                routeStops.add(point)
+                addedStops.add(point)
+            }
+        }
+        return routeStops
     }
 
     private fun buildAStarPathSegment(
@@ -781,6 +801,9 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     companion object {
+        private const val ROAD_SAMPLE_PADDING = 1
+        private const val MIN_ROAD_PIXELS_PER_CELL = 2
+        private const val ROAD_EXPANSION_RADIUS = 0
         private var cachedBaseGrid: List<List<MapCell>>? = null
     }
 }
@@ -792,5 +815,10 @@ private fun FoodCategory.displayName(): String {
         FoodCategory.FULL_MEAL -> "Полный обед"
         FoodCategory.SNACK -> "Перекус"
         FoodCategory.DISPOSABLE_TABLEWARE -> "Посуда"
+        FoodCategory.TEA -> "Чай"
+        FoodCategory.DESSERT -> "Десерт"
+        FoodCategory.SANDWICH -> "Сэндвич"
+        FoodCategory.SALAD -> "Салат"
+        FoodCategory.WATER -> "Вода"
     }
 }

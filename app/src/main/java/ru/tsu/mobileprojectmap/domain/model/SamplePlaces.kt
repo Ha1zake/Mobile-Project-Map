@@ -9,7 +9,7 @@ object SamplePlaces {
             type = PlaceType.CAFE,
             point = Point(102, 114),
             description = "Кофе, десерты и напитки рядом с учебными корпусами.",
-            menuItems = listOf("coffee", "snack"),
+            menuItems = listOf("coffee", "snack", "tea", "dessert"),
             openHour = 9,
             closeHour = 21
         ),
@@ -19,47 +19,57 @@ object SamplePlaces {
             type = PlaceType.CAFE,
             point = Point(106, 107),
             description = "Блины и быстрый перекус на территории кампуса.",
-            menuItems = listOf("pancakes", "snack"),
+            menuItems = listOf("pancakes", "snack", "tea", "dessert"),
             openHour = 9,
             closeHour = 20
         ),
         Place(
-            id = "main_cafeteria",
-            name = "Main Cafeteria",
+            id = "siberian_pancakes_2",
+            name = "Siberian Pancakes",
             type = PlaceType.CAFE,
-            point = Point(80, 105),
+            point = Point(41, 41),
+            description = "Блины и быстрый перекус",
+            menuItems = listOf("pancakes", "snack", "tea", "dessert"),
+            openHour = 11,
+            closeHour = 21
+        ),
+        Place(
+            id = "100Loveaya",
+            name = "100LoveАЯ",
+            type = PlaceType.CAFE,
+            point = Point(99, 106),
             description = "Полноценные обеды и комплексное меню.",
-            menuItems = listOf("full_meal", "coffee"),
-            openHour = 8,
-            closeHour = 18
+            menuItems = listOf("full_meal", "coffee", "salad", "tea"),
+            openHour = 9,
+            closeHour = 17
         ),
         Place(
             id = "yarche",
             name = "Yarche",
             type = PlaceType.CAFE,
             point = Point(13, 137),
-            description = "Магазин для перекуса и покупки одноразовой посуды.",
-            menuItems = listOf("snack", "disposable_tableware", "coffee"),
+            description = "Магазин, где есть почти все",
+            menuItems = listOf("snack", "disposable_tableware", "coffee", "water", "sandwich", "dessert"),
             openHour = 8,
             closeHour = 22
         ),
         Place(
-            id = "bus_stop_coffee",
-            name = "Bus Stop Coffee",
+            id = "Tochka_coffee",
+            name = "Точка",
             type = PlaceType.CAFE,
-            point = Point(28, 154),
-            description = "Кофейная точка у остановки.",
-            menuItems = listOf("coffee", "snack"),
-            openHour = 8,
-            closeHour = 19
+            point = Point(141, 38),
+            description = "Кофейная точка",
+            menuItems = listOf("coffee"),
+            openHour = 9,
+            closeHour = 20
         ),
         Place(
-            id = "second_building_cafe",
-            name = "Second Building Cafe",
+            id = "XO_Bakery",
+            name = "XO Bakery",
             type = PlaceType.CAFE,
-            point = Point(118, 87),
-            description = "Небольшое кафе рядом со вторым корпусом.",
-            menuItems = listOf("coffee", "full_meal"),
+            point = Point(121, 130),
+            description = "Кафе с вкусным кофе",
+            menuItems = listOf("coffee", "full_meal", "tea", "salad"),
             openHour = 9,
             closeHour = 18
         ),
@@ -68,8 +78,8 @@ object SamplePlaces {
             name = "Abricos",
             type = PlaceType.CAFE,
             point = Point(62, 194),
-            description = "Магазин с напитками и быстрыми перекусами у выхода с кампуса.",
-            menuItems = listOf("snack", "coffee"),
+            description = "Магазин с напитками и быстрыми перекусами у юридического корпуса.",
+            menuItems = listOf("snack", "coffee", "water", "sandwich", "dessert"),
             openHour = 8,
             closeHour = 21
         ),
@@ -79,7 +89,7 @@ object SamplePlaces {
             type = PlaceType.CAFE,
             point = Point(112, 32),
             description = "Фастфуд с быстрым обслуживанием.",
-            menuItems = listOf("full_meal", "snack"),
+            menuItems = listOf("full_meal", "snack", "sandwich", "water"),
             openHour = 9,
             closeHour = 22
         ),
@@ -88,8 +98,8 @@ object SamplePlaces {
             name = "Baba Roma",
             type = PlaceType.CAFE,
             point = Point(72, 36),
-            description = "Кафе для спокойного обеда рядом с рощей.",
-            menuItems = listOf("full_meal", "coffee", "snack"),
+            description = "Кафе-ресторан для обеда рядом с рощей.",
+            menuItems = listOf("full_meal", "coffee", "snack", "tea", "dessert", "salad"),
             openHour = 10,
             closeHour = 21
         ),
@@ -98,72 +108,55 @@ object SamplePlaces {
             name = "Library Coworking",
             type = PlaceType.COWORKING,
             point = Point(142, 66),
-            description = "Тихое место для учёбы с розетками и столами.",
+            description = "Тихое место для учебы с розетками и столами.",
             openHour = 9,
+            closeHour = 21
+        ),
+
+        Place(
+            id = "vk_zone",
+            name = "ВК зона",
+            type = PlaceType.COWORKING,
+            point = Point(119, 131),
+            description = "ВК зона с мягкими диванчиками и приятной атмосферой",
+            openHour = 8,
             closeHour = 20
         ),
         Place(
-            id = "north_reading_room",
-            name = "North Reading Room",
-            type = PlaceType.COWORKING,
-            point = Point(132, 82),
-            description = "Читальный зал для индивидуальной и групповой работы.",
-            openHour = 9,
-            closeHour = 19
-        ),
-        Place(
-            id = "student_coworking",
-            name = "Student Coworking",
-            type = PlaceType.COWORKING,
-            point = Point(54, 92),
-            description = "Общая зона для командной работы студентов.",
-            openHour = 8,
-            closeHour = 21
-        ),
-        Place(
-            id = "green_hall",
-            name = "Green Hall",
-            type = PlaceType.COWORKING,
-            point = Point(91, 58),
-            description = "Свободная аудитория с мягкой посадкой.",
-            openHour = 8,
-            closeHour = 18
-        ),
-        Place(
-            id = "main_building",
-            name = "Main Building",
+            id = "geophysical_center",
+            name = "Символ геофизического центра Евразии",
             type = PlaceType.LANDMARK,
-            point = Point(78, 72),
-            description = "Главный корпус ТГУ."
+            point = Point(107, 58),
+            description = "Камень, символ геофизического центра Евразии."
         ),
         Place(
-            id = "science_library",
-            name = "Science Library",
+            id = "florinsky_mendeleev",
+            name = "Флоринский и Менделеев",
             type = PlaceType.LANDMARK,
-            point = Point(138, 73),
-            description = "Научная библиотека и одна из ключевых точек кампуса."
+            point = Point(110, 78),
+            description = "Памятник В. М. Флоринскому и Д. И. Менделееву."
         ),
         Place(
-            id = "university_grove",
-            name = "University Grove",
+            id = "I_love_Tomsk",
+            name = "Я люблю Томск",
             type = PlaceType.LANDMARK,
-            point = Point(91, 111),
-            description = "Центральная прогулочная часть университетской рощи."
+            point = Point(7, 32),
+            description = "Декоративная надпись"
         ),
         Place(
-            id = "main_gate",
-            name = "Main Gate",
+            id ="Bridge",
+            name = "Мост через Медичку",
             type = PlaceType.LANDMARK,
-            point = Point(36, 166),
-            description = "Главный вход на территорию кампуса."
+            point = Point(70, 69),
+            description = "Достопримечательность: мост через бывшую реку Медичку"
         ),
         Place(
-            id = "botanical_alley",
-            name = "Botanical Alley",
+            id ="Potanin",
+            name = "Г.Н.Потанин",
             type = PlaceType.LANDMARK,
-            point = Point(118, 52),
-            description = "Аллея для прогулок с видом на корпуса и рощу."
-        )
+            point = Point(116, 60),
+            description = "Памятник, мемориал, посвященный Г.Н.Потанину"
+        ),
     )
 
     val cafes: List<Place>

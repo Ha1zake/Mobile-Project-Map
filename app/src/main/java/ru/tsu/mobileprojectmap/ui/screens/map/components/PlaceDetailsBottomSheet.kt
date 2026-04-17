@@ -366,6 +366,11 @@ private fun String.prettyMenuItem(): String {
         "full_meal" -> "полный обед"
         "snack" -> "перекус"
         "disposable_tableware" -> "одноразовая посуда"
+        "tea" -> "чай"
+        "dessert" -> "десерт"
+        "sandwich" -> "сэндвич"
+        "salad" -> "салат"
+        "water" -> "вода"
         else -> replace('_', ' ')
     }
 }

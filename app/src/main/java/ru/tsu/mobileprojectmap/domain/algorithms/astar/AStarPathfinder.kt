@@ -5,6 +5,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlin.math.abs
+import kotlin.math.sqrt
 import ru.tsu.mobileprojectmap.domain.model.GridCell
 import ru.tsu.mobileprojectmap.domain.model.Point
 
@@ -21,11 +22,21 @@ class AStarPathfinder {
         Point(1, 0),
         Point(-1, 0),
         Point(0, 1),
-        Point(0, -1)
+        Point(0, -1),
+        Point(1, 1),
+        Point(1, -1),
+        Point(-1, 1),
+        Point(-1, -1)
     )
 
     private fun heuristic(a: Point, b: Point): Double {
-        return (abs(a.x - b.x) + abs(a.y - b.y)).toDouble()
+        val dx = abs(a.x - b.x).toDouble()
+        val dy = abs(a.y - b.y).toDouble()
+        return dx + dy + (sqrt(2.0) - 2.0) * minOf(dx, dy)
+    }
+
+    private fun movementCost(direction: Point): Double {
+        return if (direction.x != 0 && direction.y != 0) sqrt(2.0) else 1.0
     }
 
     fun findPath(
@@ -49,7 +60,7 @@ class AStarPathfinder {
         nodeMap[start] = startNode
 
         while (openSet.isNotEmpty()) {
-            val current = openSet.poll()
+            val current = openSet.poll() ?: break
 
             if (current.point == end) {
                 return reconstructPath(current)
@@ -67,9 +78,10 @@ class AStarPathfinder {
                 val cell = cellMap[neighbor] ?: continue
 
                 if (!cell.isWalkable) continue
+                if (dir.isDiagonal() && !canMoveDiagonally(current.point, dir, cellMap)) continue
 
                 val neighborNode = nodeMap[neighbor] ?: Node(point = neighbor)
-                val newG = current.g + 1.0
+                val newG = current.g + movementCost(dir)
 
                 if (newG < neighborNode.g) {
                     neighborNode.g = newG
@@ -106,7 +118,7 @@ class AStarPathfinder {
         var iteration = 0
 
         while (openSet.isNotEmpty()) {
-            val current = openSet.poll()
+            val current = openSet.poll() ?: break
 
             if (current.point == end) {
                 val finalPath = reconstructPath(current)
@@ -150,9 +162,10 @@ class AStarPathfinder {
                 val cell = cellMap[neighbor] ?: continue
 
                 if (!cell.isWalkable) continue
+                if (dir.isDiagonal() && !canMoveDiagonally(current.point, dir, cellMap)) continue
 
                 val neighborNode = nodeMap[neighbor] ?: Node(point = neighbor)
-                val newG = current.g + 1.0
+                val newG = current.g + movementCost(dir)
 
                 if (newG < neighborNode.g) {
                     neighborNode.g = newG
@@ -185,5 +198,19 @@ class AStarPathfinder {
         }
 
         return path.reversed()
+    }
+
+    private fun Point.isDiagonal(): Boolean {
+        return x != 0 && y != 0
+    }
+
+    private fun canMoveDiagonally(
+        point: Point,
+        direction: Point,
+        cellMap: Map<Point, GridCell>
+    ): Boolean {
+        val horizontal = Point(point.x + direction.x, point.y)
+        val vertical = Point(point.x, point.y + direction.y)
+        return cellMap[horizontal]?.isWalkable == true && cellMap[vertical]?.isWalkable == true
     }
 }

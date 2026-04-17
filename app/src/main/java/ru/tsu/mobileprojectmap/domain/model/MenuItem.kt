@@ -13,5 +13,10 @@ enum class FoodCategory {
     PANCAKES,
     FULL_MEAL,
     SNACK,
-    DISPOSABLE_TABLEWARE
+    DISPOSABLE_TABLEWARE,
+    TEA,
+    DESSERT,
+    SANDWICH,
+    SALAD,
+    WATER
 }

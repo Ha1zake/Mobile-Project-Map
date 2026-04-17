@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -189,17 +190,24 @@ fun DecisionTreeScreen(
                         )
 
                         FEATURE_FIELDS.forEach { field ->
-                            OutlinedTextField(
-                                value = featureInputs[field.name].orEmpty(),
-                                onValueChange = { featureInputs[field.name] = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(field.label) },
-                                placeholder = { Text(field.hint) }
+                            FeatureOptionPicker(
+                                field = field,
+                                selectedValue = featureInputs[field.name].orEmpty(),
+                                onValueSelected = { value -> featureInputs[field.name] = value }
                             )
                         }
 
                         Button(
                             onClick = {
+                                val hasEmptyInput = FEATURE_FIELDS.any { field ->
+                                    featureInputs[field.name].isNullOrBlank()
+                                }
+                                if (hasEmptyInput) {
+                                    predictionResult = null
+                                    errorMessage = "Р’С‹Р±РµСЂРёС‚Рµ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ РєР°Р¶РґРѕРіРѕ РєСЂРёС‚РµСЂРёСЏ."
+                                    return@Button
+                                }
+
                                 runCatching {
                                     predictPlaceUseCase(
                                         root = result.root,
@@ -262,6 +270,51 @@ fun DecisionTreeScreen(
 }
 
 @Composable
+private fun FeatureOptionPicker(
+    field: FeatureField,
+    selectedValue: String,
+    onValueSelected: (String) -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = field.label,
+            style = MaterialTheme.typography.labelLarge
+        )
+
+        field.options.chunked(2).forEach { optionRow ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                optionRow.forEach { option ->
+                    val isSelected = option == selectedValue
+                    if (isSelected) {
+                        Button(
+                            onClick = { onValueSelected(option) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(option)
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { onValueSelected(option) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(option)
+                        }
+                    }
+                }
+                if (optionRow.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun TreeNodeView(
     node: DecisionTreeNode,
     depth: Int,
@@ -303,16 +356,16 @@ private fun TreeNodeView(
 private data class FeatureField(
     val name: String,
     val label: String,
-    val hint: String
+    val options: List<String>
 )
 
 private val FEATURE_FIELDS = listOf(
-    FeatureField("location", "location", "main_building / second_building / bus_stop / campus_center"),
-    FeatureField("budget", "budget", "low / medium / high"),
-    FeatureField("time_available", "time_available", "very_short / short / medium"),
-    FeatureField("food_type", "food_type", "coffee / pancakes / full_meal / snack"),
-    FeatureField("queue_tolerance", "queue_tolerance", "low / medium / high"),
-    FeatureField("weather", "weather", "good / bad")
+    FeatureField("location", "location", listOf("main_building", "second_building", "bus_stop", "campus_center")),
+    FeatureField("budget", "budget", listOf("low", "medium", "high")),
+    FeatureField("time_available", "time_available", listOf("very_short", "short", "medium")),
+    FeatureField("food_type", "food_type", listOf("coffee", "pancakes", "full_meal", "snack")),
+    FeatureField("queue_tolerance", "queue_tolerance", listOf("low", "medium", "high")),
+    FeatureField("weather", "weather", listOf("good", "bad"))
 )
 
 private const val DEFAULT_DECISION_TREE_CSV = """

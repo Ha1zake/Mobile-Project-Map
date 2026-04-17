@@ -29,6 +29,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +72,9 @@ private enum class MapPanelTab {
     ANT
 }
 
+private const val MIN_MAP_ZOOM = 2.6f
+private const val MAX_MAP_ZOOM = 4.6f
+
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +89,8 @@ fun MapScreen(
     var selectedCluster by remember { mutableStateOf<Cluster?>(null) }
     var selectedPlace by remember { mutableStateOf<Place?>(null) }
     var activeTab by remember { mutableStateOf(MapPanelTab.ASTAR) }
-    var zoom by remember { mutableFloatStateOf(1f) }
+    var zoom by remember { mutableFloatStateOf(MIN_MAP_ZOOM) }
+    var isPanelExpanded by remember { mutableStateOf(false) }
     val selectedLandmarkIds = remember {
         mutableStateListOf<String>().apply {
             addAll(SamplePlaces.landmarks.map { it.id })
@@ -279,7 +284,7 @@ fun MapScreen(
                                 currentMode = uiState.currentMode,
                                 kMeansResult = kMeansState.result,
                                 allowPlaceTap = true,
-                                showPlaceLabels = zoom >= 1.25f,
+                                showPlaceLabels = false,
                                 onCellClick = { row, col -> viewModel.onCellClick(row, col) },
                                 onObstacleDrag = { row, col -> viewModel.drawObstacleCell(row, col) },
                                 onClusterClick = { cluster ->
@@ -322,39 +327,59 @@ fun MapScreen(
                 antSummary = uiState.antSummary,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(start = 12.dp, end = 12.dp, bottom = 148.dp)
+                    .padding(
+                        start = 12.dp,
+                        end = 12.dp,
+                        bottom = if (isPanelExpanded) 148.dp else 76.dp
+                    )
             )
 
             ZoomCard(
                 zoom = zoom,
-                onZoomOut = { zoom = (zoom - 0.25f).coerceIn(0.8f, 3.6f) },
-                onZoomIn = { zoom = (zoom + 0.25f).coerceIn(0.8f, 3.6f) },
+                onZoomOut = { zoom = (zoom - 0.25f).coerceIn(MIN_MAP_ZOOM, MAX_MAP_ZOOM) },
+                onZoomIn = { zoom = (zoom + 0.25f).coerceIn(MIN_MAP_ZOOM, MAX_MAP_ZOOM) },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 12.dp, end = 12.dp)
             )
 
-            AlgorithmChooserPanel(
-                activeTab = activeTab,
-                selectedGoods = uiState.selectedMealCategories,
-                selectedLandmarksCount = selectedLandmarkIds.size,
-                currentClusterFilter = kMeansState.filterType,
-                onSelectTab = { activeTab = it },
-                onSetStart = { viewModel.setMode(MapEditMode.SET_START) },
-                onSetFinish = { viewModel.setMode(MapEditMode.SET_FINISH) },
-                onRunAStar = { viewModel.findPath() },
-                onSetObstacles = { viewModel.setMode(MapEditMode.SET_OBSTACLE) },
-                onResetMap = { viewModel.resetMap() },
-                onRunKMeans = { kMeansViewModel.runKMeans(3, kMeansState.filterType) },
-                onClearKMeans = { kMeansViewModel.clearKMeans() },
-                onSelectKMeansFilter = { filter -> kMeansViewModel.setFilterType(filter) },
-                onRunGenetic = { viewModel.runGeneticMealRoute() },
-                onRunAnt = { viewModel.runAntLandmarksRoute(selectedLandmarkIds.toSet()) },
-                onOpenSettings = { showBottomSheet = true },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(start = 12.dp, end = 12.dp, bottom = 16.dp)
-            )
+            if (isPanelExpanded) {
+                AlgorithmChooserPanel(
+                    activeTab = activeTab,
+                    selectedGoods = uiState.selectedMealCategories,
+                    selectedLandmarksCount = selectedLandmarkIds.size,
+                    currentClusterFilter = kMeansState.filterType,
+                    currentClusterCount = kMeansState.clusterCount,
+                    onSelectTab = { activeTab = it },
+                    onSetStart = { viewModel.setMode(MapEditMode.SET_START) },
+                    onSetFinish = { viewModel.setMode(MapEditMode.SET_FINISH) },
+                    onRunAStar = { viewModel.findPath() },
+                    onSetObstacles = { viewModel.setMode(MapEditMode.SET_OBSTACLE) },
+                    onResetMap = { viewModel.resetMap() },
+                    onRunKMeans = { kMeansViewModel.runKMeans() },
+                    onClearKMeans = { kMeansViewModel.clearKMeans() },
+                    onSelectKMeansFilter = { filter -> kMeansViewModel.setFilterType(filter) },
+                    onChangeKMeansClusterCount = { count -> kMeansViewModel.setClusterCount(count) },
+                    onRunGenetic = { viewModel.runGeneticMealRoute() },
+                    onRunAnt = { viewModel.runAntLandmarksRoute(selectedLandmarkIds.toSet()) },
+                    onOpenSettings = { showBottomSheet = true },
+                    onCollapse = { isPanelExpanded = false },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(start = 12.dp, end = 12.dp, bottom = 16.dp)
+                )
+            } else {
+                FloatingActionButton(
+                    onClick = { isPanelExpanded = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 16.dp)
+                        .navigationBarsPadding()
+                        .testTag("map_panel_expand")
+                ) {
+                    Text("Menu")
+                }
+            }
 
             if (uiState.isMapLoading || uiState.isRunning || kMeansState.isRunning) {
                 Card(
@@ -494,6 +519,7 @@ private fun AlgorithmChooserPanel(
     selectedGoods: Set<FoodCategory>,
     selectedLandmarksCount: Int,
     currentClusterFilter: KMeansFilterType,
+    currentClusterCount: Int,
     onSelectTab: (MapPanelTab) -> Unit,
     onSetStart: () -> Unit,
     onSetFinish: () -> Unit,
@@ -503,9 +529,11 @@ private fun AlgorithmChooserPanel(
     onRunKMeans: () -> Unit,
     onClearKMeans: () -> Unit,
     onSelectKMeansFilter: (KMeansFilterType) -> Unit,
+    onChangeKMeansClusterCount: (Int) -> Unit,
     onRunGenetic: () -> Unit,
     onRunAnt: () -> Unit,
     onOpenSettings: () -> Unit,
+    onCollapse: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -522,6 +550,17 @@ private fun AlgorithmChooserPanel(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Algorithms", style = MaterialTheme.typography.titleSmall)
+                TextButton(onClick = onCollapse) {
+                    Text("Hide")
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -594,10 +633,36 @@ private fun AlgorithmChooserPanel(
                             label = { Text("Коворкинги") }
                         )
                         FilterChip(
+                            selected = currentClusterFilter == KMeansFilterType.LANDMARK_ONLY,
+                            onClick = { onSelectKMeansFilter(KMeansFilterType.LANDMARK_ONLY) },
+                            label = { Text("Достопримечательности") }
+                        )
+                        FilterChip(
                             selected = currentClusterFilter == KMeansFilterType.ALL,
                             onClick = { onSelectKMeansFilter(KMeansFilterType.ALL) },
                             label = { Text("Все точки") }
                         )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Кластеров: $currentClusterCount",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        OutlinedButton(
+                            onClick = { onChangeKMeansClusterCount(currentClusterCount - 1) }
+                        ) {
+                            Text("-")
+                        }
+                        OutlinedButton(
+                            onClick = { onChangeKMeansClusterCount(currentClusterCount + 1) }
+                        ) {
+                            Text("+")
+                        }
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -705,5 +770,10 @@ private fun FoodCategory.label(): String {
         FoodCategory.FULL_MEAL -> "Полный обед"
         FoodCategory.SNACK -> "Перекус"
         FoodCategory.DISPOSABLE_TABLEWARE -> "Одноразовая посуда"
+        FoodCategory.TEA -> "Чай"
+        FoodCategory.DESSERT -> "Десерт"
+        FoodCategory.SANDWICH -> "Сэндвич"
+        FoodCategory.SALAD -> "Салат"
+        FoodCategory.WATER -> "Вода"
     }
 }

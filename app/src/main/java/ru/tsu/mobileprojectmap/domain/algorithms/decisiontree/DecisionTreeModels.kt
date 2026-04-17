@@ -1,12 +1,8 @@
 package ru.tsu.mobileprojectmap.domain.algorithms.decisiontree
-
-//обучающая структура
 data class TrainingSample (
     val features: Map<String, String>,
     val label: String,
 )
-
-//Узлы дерева
 sealed class DecisionTreeNode {
 
     data class DecisionNode(

@@ -1,11 +1,6 @@
 package ru.tsu.mobileprojectmap.domain.algorithms.neural
 
-/**
- * Простейший распознаватель цифр по 5x5 бинарной сетке.
- *
- * В контексте учебного проекта это работает как "модель": мы сравниваем ввод с набором эталонных
- * шаблонов и выбираем цифру с минимальным числом расхождений.
- */
+
 object DigitRecognizer {
 
     fun recognizeDigit(cells: List<Boolean>, gridSize: Int = 5): Int? {
@@ -33,9 +28,6 @@ object DigitRecognizer {
                 bestDigit = digit
             }
         }
-
-        // Если ввод сильно "не похож" ни на одну цифру — считаем, что распознавание не удалось.
-        // Для 25 клеток порог 12 обычно даёт стабильный результат.
         return if (bestMismatch <= 12) bestDigit else null
     }
 
@@ -43,8 +35,6 @@ object DigitRecognizer {
         require(gridSize == 5) {
             "Сейчас распознаватель реализован только для 5x5."
         }
-
-        // 1 - закрашено, 0 - пусто
         val raw = mapOf(
             0 to listOf(
                 "01110",

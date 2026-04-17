@@ -272,6 +272,120 @@ fun CanvasMap(
                 center = Offset(centerX, centerY)
             )
 
+            if (place.type == PlaceType.CAFE) {
+                val iconSize = markerRadius * 3.0f
+                val cartLeft = centerX - iconSize * 0.42f
+                val cartTop = centerY - iconSize * 0.30f
+                val cartRight = centerX + iconSize * 0.38f
+                val cartBottom = centerY + iconSize * 0.18f
+                val cartColor = Color.White
+                val cartStroke = (markerRadius * 0.42f).coerceAtLeast(2f)
+
+                drawLine(
+                    color = cartColor,
+                    start = Offset(cartLeft, cartTop),
+                    end = Offset(cartLeft + iconSize * 0.18f, cartBottom),
+                    strokeWidth = cartStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = cartColor,
+                    start = Offset(cartLeft + iconSize * 0.16f, cartTop + iconSize * 0.12f),
+                    end = Offset(cartRight, cartTop + iconSize * 0.12f),
+                    strokeWidth = cartStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = cartColor,
+                    start = Offset(cartLeft + iconSize * 0.23f, cartBottom),
+                    end = Offset(cartRight - iconSize * 0.05f, cartBottom),
+                    strokeWidth = cartStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = cartColor,
+                    start = Offset(cartRight, cartTop + iconSize * 0.12f),
+                    end = Offset(cartRight - iconSize * 0.09f, cartBottom),
+                    strokeWidth = cartStroke,
+                    cap = StrokeCap.Round
+                )
+                drawCircle(
+                    color = cartColor,
+                    radius = markerRadius * 0.38f,
+                    center = Offset(cartLeft + iconSize * 0.30f, centerY + iconSize * 0.35f)
+                )
+                drawCircle(
+                    color = cartColor,
+                    radius = markerRadius * 0.38f,
+                    center = Offset(cartRight - iconSize * 0.16f, centerY + iconSize * 0.35f)
+                )
+            } else if (place.type == PlaceType.LANDMARK) {
+                val iconSize = markerRadius * 3.0f
+                val statueColor = Color.White
+                val statueStroke = (markerRadius * 0.36f).coerceAtLeast(2f)
+                val topY = centerY - iconSize * 0.36f
+                val baseY = centerY + iconSize * 0.34f
+                val leftX = centerX - iconSize * 0.38f
+                val rightX = centerX + iconSize * 0.38f
+
+                drawLine(
+                    color = statueColor,
+                    start = Offset(centerX, topY),
+                    end = Offset(leftX, centerY - iconSize * 0.10f),
+                    strokeWidth = statueStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = statueColor,
+                    start = Offset(centerX, topY),
+                    end = Offset(rightX, centerY - iconSize * 0.10f),
+                    strokeWidth = statueStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = statueColor,
+                    start = Offset(leftX + iconSize * 0.10f, centerY - iconSize * 0.02f),
+                    end = Offset(rightX - iconSize * 0.10f, centerY - iconSize * 0.02f),
+                    strokeWidth = statueStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = statueColor,
+                    start = Offset(centerX - iconSize * 0.18f, centerY - iconSize * 0.02f),
+                    end = Offset(centerX - iconSize * 0.18f, baseY - iconSize * 0.14f),
+                    strokeWidth = statueStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = statueColor,
+                    start = Offset(centerX, centerY - iconSize * 0.02f),
+                    end = Offset(centerX, baseY - iconSize * 0.14f),
+                    strokeWidth = statueStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = statueColor,
+                    start = Offset(centerX + iconSize * 0.18f, centerY - iconSize * 0.02f),
+                    end = Offset(centerX + iconSize * 0.18f, baseY - iconSize * 0.14f),
+                    strokeWidth = statueStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = statueColor,
+                    start = Offset(leftX + iconSize * 0.04f, baseY - iconSize * 0.08f),
+                    end = Offset(rightX - iconSize * 0.04f, baseY - iconSize * 0.08f),
+                    strokeWidth = statueStroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = statueColor,
+                    start = Offset(leftX, baseY),
+                    end = Offset(rightX, baseY),
+                    strokeWidth = statueStroke,
+                    cap = StrokeCap.Round
+                )
+            }
+
             if (showPlaceLabels) {
                 drawContext.canvas.nativeCanvas.apply {
                     val text = place.name

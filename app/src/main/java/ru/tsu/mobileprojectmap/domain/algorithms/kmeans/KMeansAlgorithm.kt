@@ -12,8 +12,6 @@ object KMeansAlgorithm {
         var converged = false
         var iterations = 0
         var pointToCluster = emptyMap<String, Int>()
-
-        //проходим пока либо не сойлёмся, либо не упрёмся в лимит
         for (iteration in 0 until input.maxIterations) {
             val assignments = assignPointsToClusters(input.points, centroids)
             val newCentroids = recomputeCentroids(assignments, centroids)
