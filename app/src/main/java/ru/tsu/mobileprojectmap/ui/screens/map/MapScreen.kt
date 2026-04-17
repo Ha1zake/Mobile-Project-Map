@@ -1,5 +1,6 @@
 package ru.tsu.mobileprojectmap.ui.screens.map
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -56,6 +57,7 @@ import ru.tsu.mobileprojectmap.ui.screens.map.components.CanvasMap
 import ru.tsu.mobileprojectmap.ui.screens.map.components.PlaceDetailsBottomSheet
 import ru.tsu.mobileprojectmap.ui.screens.map.model.MapEditMode
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
@@ -339,7 +341,8 @@ fun MapScreen(
                         enabled = uiState.currentMode != MapEditMode.SET_OBSTACLE &&
                             (uiState.currentMode != MapEditMode.VIEW || zoomScale == 1f)
                     )
-            ) {
+            )
+            {
                 val density = LocalDensity.current
                 val viewportWidthPx = with(density) { maxWidth.toPx() }
                 val viewportHeightPx = with(density) { maxHeight.toPx() }
@@ -373,7 +376,8 @@ fun MapScreen(
                                 }
                             }
                         }
-                ) {
+                )
+                {
                     Image(
                         painter = painterResource(id = R.drawable.campus_map),
                         contentDescription = "Карта кампуса",
