@@ -256,9 +256,7 @@ fun MapScreen(
         val horizontalScroll = rememberScrollState()
         val mapWidth = 1300.dp
         val mapHeight = 946.dp
-        var zoomScale by remember { mutableStateOf(1f) }
-        var offsetX by remember { mutableStateOf(0f) }
-        var offsetY by remember { mutableStateOf(0f) }
+
 
         Box(
             modifier = Modifier
@@ -333,51 +331,17 @@ fun MapScreen(
                     .clipToBounds()
                     .verticalScroll(
                         state = verticalScroll,
-                        enabled = uiState.currentMode != MapEditMode.SET_OBSTACLE &&
-                            (uiState.currentMode != MapEditMode.VIEW || zoomScale == 1f)
+                        enabled = uiState.currentMode != MapEditMode.SET_OBSTACLE
                     )
                     .horizontalScroll(
                         state = horizontalScroll,
-                        enabled = uiState.currentMode != MapEditMode.SET_OBSTACLE &&
-                            (uiState.currentMode != MapEditMode.VIEW || zoomScale == 1f)
+                        enabled = uiState.currentMode != MapEditMode.SET_OBSTACLE
                     )
             )
             {
-                val density = LocalDensity.current
-                val viewportWidthPx = with(density) { maxWidth.toPx() }
-                val viewportHeightPx = with(density) { maxHeight.toPx() }
-                val mapWidthPx = with(density) { mapWidth.toPx() }
-                val mapHeightPx = with(density) { mapHeight.toPx() }
 
-                Box(
-                    modifier = Modifier
-                        .graphicsLayer {
-                            scaleX = zoomScale
-                            scaleY = zoomScale
-                            translationX = offsetX
-                            translationY = offsetY
-                        }
-                        .pointerInput(uiState.currentMode) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                if (uiState.currentMode != MapEditMode.VIEW) return@detectTransformGestures
 
-                                val newScale = (zoomScale * zoom).coerceIn(1f, 4f)
-                                val maxOffsetX = ((mapWidthPx * newScale) - viewportWidthPx).coerceAtLeast(0f) / 2f
-                                val maxOffsetY = ((mapHeightPx * newScale) - viewportHeightPx).coerceAtLeast(0f) / 2f
-
-                                zoomScale = newScale
-
-                                if (newScale > 1f) {
-                                    offsetX = (offsetX + pan.x).coerceIn(-maxOffsetX, maxOffsetX)
-                                    offsetY = (offsetY + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
-                                } else {
-                                    offsetX = 0f
-                                    offsetY = 0f
-                                }
-                            }
-                        }
-                )
-                {
+                Box{
                     Image(
                         painter = painterResource(id = R.drawable.campus_map),
                         contentDescription = "Карта кампуса",

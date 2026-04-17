@@ -58,7 +58,7 @@ fun PlaceDetailsBottomSheet(
         placeReviewsViewModel.setPlace(place.id)
     }
 
-
+    // Для отзыва нужна распознавалка цифры (0..9).
     var isAddingReview by remember(place.id) { mutableStateOf(false) }
     var formError by remember(place.id) { mutableStateOf<String?>(null) }
     var reviewText by remember(place.id) { mutableStateOf("") }
@@ -90,11 +90,12 @@ fun PlaceDetailsBottomSheet(
                 onClick = onClose,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 0.dp, end = 0.dp)
+
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Закрыть"
+
                 )
             }
 
