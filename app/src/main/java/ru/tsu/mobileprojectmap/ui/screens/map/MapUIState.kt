@@ -16,5 +16,8 @@ data class MapUIState(
     val startCell: MapCell? = null,
     val finishCell: MapCell? = null,
     val statusMessage: String = "Просматривайте карту или выберите режим в меню",
-    val pathFound: Boolean? = null
+    val pathFound: Boolean? = null,
+    val isMapLoading: Boolean = true,
+    val geneticSummary: String? = null,
+    val antSummary: String? = null
 )

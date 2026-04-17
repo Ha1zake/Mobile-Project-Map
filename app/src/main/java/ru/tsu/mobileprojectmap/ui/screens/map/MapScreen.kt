@@ -17,11 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -161,6 +162,26 @@ fun MapScreen(
                     Text("Запустить KMeans")
                 }
 
+                Button(
+                    onClick = {
+                        viewModel.runGeneticMealRoute()
+                        showBottomSheet = false
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Запустить генетический алгоритм")
+                }
+
+                Button(
+                    onClick = {
+                        viewModel.runAntLandmarksRoute()
+                        showBottomSheet = false
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Запустить муравьиный алгоритм")
+                }
+
                 Text(
                     text = "Тип точек для кластеризации",
                     style = MaterialTheme.typography.titleMedium
@@ -246,7 +267,7 @@ fun MapScreen(
                 title = { Text("Карта и маршрут") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 }
             )
@@ -256,9 +277,7 @@ fun MapScreen(
         val horizontalScroll = rememberScrollState()
         val mapWidth = 1300.dp
         val mapHeight = 946.dp
-        var zoomScale by remember { mutableStateOf(1f) }
-        var offsetX by remember { mutableStateOf(0f) }
-        var offsetY by remember { mutableStateOf(0f) }
+
 
         Box(
             modifier = Modifier
@@ -326,62 +345,55 @@ fun MapScreen(
                 }
             }
 
+            uiState.geneticSummary?.let { summary ->
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 12.dp, vertical = 74.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+                    )
+                ) {
+                    Text(
+                        text = "Генетический: $summary",
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            uiState.antSummary?.let { summary ->
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 12.dp, vertical = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+                    )
+                ) {
+                    Text(
+                        text = "Муравьиный: $summary",
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color(0xFFF5F5F5))
-                    .clipToBounds()
-                    .verticalScroll(
-                        state = verticalScroll,
-                        enabled = uiState.currentMode != MapEditMode.SET_OBSTACLE &&
-                            (uiState.currentMode != MapEditMode.VIEW || zoomScale == 1f)
-                    )
-                    .horizontalScroll(
-                        state = horizontalScroll,
-                        enabled = uiState.currentMode != MapEditMode.SET_OBSTACLE &&
-                            (uiState.currentMode != MapEditMode.VIEW || zoomScale == 1f)
-                    )
-            )
-            {
-                val density = LocalDensity.current
-                val viewportWidthPx = with(density) { maxWidth.toPx() }
-                val viewportHeightPx = with(density) { maxHeight.toPx() }
-                val mapWidthPx = with(density) { mapWidth.toPx() }
-                val mapHeightPx = with(density) { mapHeight.toPx() }
-
+                    .verticalScroll(rememberScrollState())
+                    .horizontalScroll(rememberScrollState())
+            ) {
                 Box(
                     modifier = Modifier
-                        .graphicsLayer {
-                            scaleX = zoomScale
-                            scaleY = zoomScale
-                            translationX = offsetX
-                            translationY = offsetY
-                        }
-                        .pointerInput(uiState.currentMode) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                if (uiState.currentMode != MapEditMode.VIEW) return@detectTransformGestures
-
-                                val newScale = (zoomScale * zoom).coerceIn(1f, 4f)
-                                val maxOffsetX = ((mapWidthPx * newScale) - viewportWidthPx).coerceAtLeast(0f) / 2f
-                                val maxOffsetY = ((mapHeightPx * newScale) - viewportHeightPx).coerceAtLeast(0f) / 2f
-
-                                zoomScale = newScale
-
-                                if (newScale > 1f) {
-                                    offsetX = (offsetX + pan.x).coerceIn(-maxOffsetX, maxOffsetX)
-                                    offsetY = (offsetY + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
-                                } else {
-                                    offsetX = 0f
-                                    offsetY = 0f
-                                }
-                            }
-                        }
-                )
-                {
+                        .size(mapWidth, mapHeight)
+                ) {
                     Image(
                         painter = painterResource(id = R.drawable.campus_map),
                         contentDescription = "Карта кампуса",
-                        modifier = Modifier.size(mapWidth, mapHeight),
+                        modifier = Modifier.matchParentSize(),
                         contentScale = ContentScale.Fit
                     )
 
@@ -405,15 +417,31 @@ fun MapScreen(
                             showBottomSheet = false
                         },
                         onPlaceClick = { place ->
-                            // Клик по точке магазина/заведения открывает карточку заведения.
                             selectedPlace = place
                             selectedCluster = null
                             showBottomSheet = false
                         },
                         worldWidth = mapWidth,
-                        worldHeight = mapHeight,
-                        modifier = Modifier
+                        worldHeight = mapHeight
                     )
+                }
+            }
+
+            if (uiState.isMapLoading) {
+                Card(
+                    modifier = Modifier.align(Alignment.Center),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Загружаем карту...")
+                    }
                 }
             }
 

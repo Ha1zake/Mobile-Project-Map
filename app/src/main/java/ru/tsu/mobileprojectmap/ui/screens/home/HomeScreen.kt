@@ -23,8 +23,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun HomeScreen(
     onOpenMap: () -> Unit,
-    onOpenDecisionTree: () -> Unit,
-    onOpenNeural: () -> Unit
+    onOpenDecisionTree: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -52,7 +51,7 @@ fun HomeScreen(
             )
 
             Text(
-                text = "Здесь собраны все алгоритмы, которые уже есть в приложении. Можно перейти к карте с A* и KMeans, к дереву решений и к экрану нейросети.",
+                text = "Здесь собраны алгоритмы модуля: A*, кластеризация, генетический, муравьиный, дерево решений и оценка заведений через распознавание цифры в отзывах.",
                 style = MaterialTheme.typography.bodyLarge
             )
 
@@ -68,13 +67,6 @@ fun HomeScreen(
                 description = "Построение дерева по CSV и рекомендация заведения по введённым признакам.",
                 onOpen = onOpenDecisionTree,
                 buttonText = "Открыть дерево решений"
-            )
-
-            AlgorithmCard(
-                title = "Нейросеть",
-                description = "Сетка 5x5 для ввода цифры и демонстрации распознавания.",
-                onOpen = onOpenNeural,
-                buttonText = "Открыть нейросеть"
             )
         }
     }

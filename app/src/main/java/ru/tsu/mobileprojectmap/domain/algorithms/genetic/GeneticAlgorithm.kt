@@ -6,8 +6,8 @@ import kotlin.random.Random
 
 class GeneticAlgorithm {
     private val fitnessCalculator = FitnessCalculator()
-    private val populationSize = 30
-    private val generations = 50
+    private val populationSize = 100
+    private val generations = 150
     private val mutationRate = 0.1
     private val crossoverRate = 0.8
     private val tournamentSize = 3
@@ -239,11 +239,11 @@ class GeneticAlgorithm {
             selectedMenuItems.map { it.category }.toSet()
         )
 
-        if (coveredCategories.size != request.requiredCategories.size) {
+        if (coveredCategories.isEmpty()) {
             return false
         }
 
-        return calculateTotalPrice(selectedMenuItems, request) <= request.maxBudget
+        return true
     }
 
     private fun calculateTotalPrice(

@@ -7,7 +7,6 @@ import androidx.navigation.compose.composable
 import ru.tsu.mobileprojectmap.ui.screens.decisiontree.DecisionTreeScreen
 import ru.tsu.mobileprojectmap.ui.screens.home.HomeScreen
 import ru.tsu.mobileprojectmap.ui.screens.map.MapScreen
-import ru.tsu.mobileprojectmap.ui.screens.neural.NeuralScreen
 
 @Composable
 fun AppNavGraph(
@@ -20,8 +19,7 @@ fun AppNavGraph(
         composable(Routes.Home.route) {
             HomeScreen(
                 onOpenMap = { navController.navigate(Routes.Map.route) },
-                onOpenDecisionTree = { navController.navigate(Routes.DecisionTree.route) },
-                onOpenNeural = { navController.navigate(Routes.Neural.route) }
+                onOpenDecisionTree = { navController.navigate(Routes.DecisionTree.route) }
             )
         }
 
@@ -33,12 +31,6 @@ fun AppNavGraph(
 
         composable(Routes.DecisionTree.route) {
             DecisionTreeScreen(
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.Neural.route) {
-            NeuralScreen(
                 onBack = { navController.popBackStack() }
             )
         }
