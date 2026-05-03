@@ -21,7 +21,8 @@ data class KMeansUiState(
     val result: KMeansResult? = null,
     val isRunning: Boolean = false,
     val error: String? = null,
-    val filterType: KMeansFilterType = KMeansFilterType.CAFE_ONLY
+    val filterType: KMeansFilterType = KMeansFilterType.CAFE_ONLY,
+    val clusterCount: Int = 3
 )
 
 
@@ -33,11 +34,16 @@ class KMeansViewModel : ViewModel() {
         private set
 
     fun runKMeans(
-        k: Int = 3,
+        k: Int = uiState.clusterCount,
         filterType: KMeansFilterType = uiState.filterType
     ) {
-        viewModelScope.launch(Dispatchers.Default) {
+        uiState = uiState.copy(
+            isRunning = true,
+            error = null,
+            filterType = filterType
+        )
 
+        viewModelScope.launch(Dispatchers.Default) {
             val filteredPlaces = when (filterType) {
                 KMeansFilterType.CAFE_ONLY ->
                     SamplePlaces.places.filter { it.type == PlaceType.CAFE }
@@ -45,9 +51,14 @@ class KMeansViewModel : ViewModel() {
                 KMeansFilterType.COWORKING_ONLY ->
                     SamplePlaces.places.filter { it.type == PlaceType.COWORKING }
 
+                KMeansFilterType.LANDMARK_ONLY ->
+                    SamplePlaces.places.filter { it.type == PlaceType.LANDMARK }
+
                 KMeansFilterType.ALL ->
                     SamplePlaces.places.filter {
-                        it.type == PlaceType.CAFE || it.type == PlaceType.COWORKING
+                        it.type == PlaceType.CAFE ||
+                            it.type == PlaceType.COWORKING ||
+                            it.type == PlaceType.LANDMARK
                     }
             }
 
@@ -60,7 +71,7 @@ class KMeansViewModel : ViewModel() {
                 )
             }
 
-            val safeK = minOf(k, points.size.coerceAtLeast(1))
+            val safeK = k.coerceIn(1, points.size.coerceAtLeast(1))
 
             val result = runKMeansUseCase(
                 KMeansInput(
@@ -76,7 +87,8 @@ class KMeansViewModel : ViewModel() {
                             result = it,
                             isRunning = false,
                             error = null,
-                            filterType = filterType
+                            filterType = filterType,
+                            clusterCount = safeK
                         )
                     },
                     onFailure = {
@@ -84,7 +96,8 @@ class KMeansViewModel : ViewModel() {
                             result = null,
                             isRunning = false,
                             error = it.message,
-                            filterType = filterType
+                            filterType = filterType,
+                            clusterCount = safeK
                         )
                     }
                 )
@@ -97,5 +110,9 @@ class KMeansViewModel : ViewModel() {
     }
     fun setFilterType(filterType: KMeansFilterType) {
         uiState = uiState.copy(filterType = filterType)
+    }
+
+    fun setClusterCount(clusterCount: Int) {
+        uiState = uiState.copy(clusterCount = clusterCount.coerceIn(1, 8))
     }
 }

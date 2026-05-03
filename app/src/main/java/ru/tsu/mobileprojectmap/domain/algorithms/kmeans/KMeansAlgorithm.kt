@@ -12,12 +12,11 @@ object KMeansAlgorithm {
         var converged = false
         var iterations = 0
         var pointToCluster = emptyMap<String, Int>()
-
-        //проходим пока либо не сойлёмся, либо не упрёмся в лимит
         for (iteration in 0 until input.maxIterations) {
             val assignments = assignPointsToClusters(input.points, centroids)
             val newCentroids = recomputeCentroids(assignments, centroids)
             clusters = buildClusters(assignments, newCentroids)
+            pointToCluster = buildPointToClusterMap(assignments)
 
             val shift = calculateMaxCentroidShift(centroids, newCentroids)
             centroids = newCentroids
@@ -95,6 +94,18 @@ object KMeansAlgorithm {
                 points = assignments[index].orEmpty(),
                 colorSeed = index,
             )
+        }
+    }
+
+    private fun buildPointToClusterMap(
+        assignments: Map<Int, List<ClusterPoint>>
+    ): Map<String, Int> {
+        return buildMap {
+            assignments.forEach { (clusterId, points) ->
+                points.forEach { point ->
+                    put(point.id, clusterId)
+                }
+            }
         }
     }
 
